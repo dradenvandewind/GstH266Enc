@@ -1,29 +1,33 @@
-plugin_c_args = ['-DHAVE_CONFIG_H']
+# Configuration de VVenC pour Linux
+vvenc_inc_dir = get_option('ENCODER_INCLUDE_PATH')
+vvenc_lib_dir = get_option('ENCODER_LIB_PATH')
 
-vvenc_enc_inc = '../encoders/vvenc_util'
-vvenc_common = '../common'
+vvenc_util_inc = '.'
+h266_common_inc = '../../common'
 
-vvenc_enc_dep = declare_dependency(include_directories : [vvenc_enc_inc, vvenc_common, configuration_inc])
+# Recherche de la bibliothèque partagée VVenC
+vvenc_lib = cc.find_library('vvenc', 
+    dirs : [vvenc_lib_dir],
+    required : true
+)
 
-gst_version = meson.project_version()
-version_arr = gst_version.split('.')
-gst_version_major = version_arr[0].to_int()
-gst_version_minor = version_arr[1].to_int()
-gst_req = '>= @0@.@1@.0'.format(gst_version_major, gst_version_minor)
+# Déclaration de la dépendance VVenC
+vvenc_dependency = declare_dependency(
+    dependencies : [vvenc_lib],
+    include_directories : [vvenc_util_inc, h266_common_inc, vvenc_inc_dir]
+)
 
-gstpbutils_dep = dependency('gstreamer-pbutils-1.0', version : gst_req,
-    fallback : ['gst-plugins-base', 'pbutils_dep'])
+# Sources de vvenc_util
+vvenc_util_sources = [
+    '../encoders/vvenc_util/vvenc_util.c',
+    '../common/log.c',
+]
 
-# The h266enc Plugin
- gsth266enc_sources = [
-  'src/gsth266enc.c',
-  'src/encode_util.c'
-  ]
-
-gsth266encexample = library('gsth266enc',
-  gsth266enc_sources,
-  c_args: plugin_c_args,
-  dependencies : [gst_dep, gstbase_dep, gstpbutils_dep, vvenc_enc_dep],
-  install : true,
-  install_dir : plugins_install_dir,
+# Construction de la bibliothèque utilitaire
+vvenc_util_lib = shared_library('vvenc_lib',
+    vvenc_util_sources,
+    c_args: plugin_c_args,
+    dependencies : [vvenc_dependency],
+    install : true,
+    install_dir : get_option('libdir')
 )

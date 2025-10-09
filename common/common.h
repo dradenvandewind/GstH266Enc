@@ -35,12 +35,6 @@
 
 #include <stdbool.h>
 
-typedef struct H266_FRAME H266Frame;
-typedef struct H266_PLANE H266Plane;
-typedef struct H266_CONFIG H266Config;
-typedef enum H266_STATUS H266Status;
-typedef enum H266FRAME_SLICE_TYPE H266FrameSliceType;
-typedef enum H266_VIDEO_FORMAT H266VideoFormat;
 
 enum H266_VIDEO_FORMAT {
     H266_DEFAULT = 0,
@@ -58,6 +52,14 @@ enum H266_STATUS {
 enum H266FRAME_SLICE_TYPE {
     H266_I_S = 0,
 };
+
+typedef struct H266_FRAME H266Frame;
+typedef struct H266_PLANE H266Plane;
+typedef struct H266_CONFIG H266Config;
+typedef enum H266_STATUS H266Status;
+typedef enum H266FRAME_SLICE_TYPE H266FrameSliceType;
+typedef enum H266_VIDEO_FORMAT H266VideoFormat;
+
 
 struct H266_CONFIG {
     unsigned int height;

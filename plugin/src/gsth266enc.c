@@ -32,6 +32,8 @@
 #  include <config.h>
 #endif
 
+#define ENCODER_TYPE "VVENC_ENCODER"
+//UVG_ENCODER
 #include "gsth266enc.h"
 
 #include <gst/pbutils/pbutils.h>
@@ -172,7 +174,7 @@ gst_h266enc_class_init (Gsth266encClass * klass)
 
   gst_element_class_set_static_metadata (gstelement_class,
     "h266enc", "Codec/Encoder/Video", "H266 Encoder",
-    "Advaiit Rajjvaed <adwait.sambare@interdigital.com>");
+    "Advaiit Rajjvaed <adwait.sambare@interdigital.com>, Erwan Le Blond <erwanleblond@gmail.com> ");
 
   gobject_class->set_property = gst_h266enc_set_property;
   gobject_class->get_property = gst_h266enc_get_property;
@@ -274,6 +276,10 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
     GST_ERROR("initEncoder failed with %d", status);
     return FALSE;
   }
+  else {
+    GST_INFO("Encoder %s initialized successfully, status %d ", ENCODER_TYPE, status);
+  }
+
 
   return TRUE;
 }
@@ -356,15 +362,45 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
   static int poc = 0;
   Gsth266enc *encoder = GST_H266ENC(video_enc);
   GstBuffer *gInputBuffer = frame->input_buffer;
+  GstVideoInfo *video_info = &encoder->input_state->info;
   GstMapInfo info;
 
-  gst_buffer_map(gInputBuffer, &info, GST_MAP_READ);
+  if (!gst_buffer_map(gInputBuffer, &info, GST_MAP_READ)) {
+    GST_ERROR("Failed to map input buffer");
+    return GST_FLOW_ERROR;
+  }
+  const guint width = GST_VIDEO_INFO_WIDTH(video_info);
+  const guint height = GST_VIDEO_INFO_HEIGHT(video_info);
 
+  GST_INFO("Input buffer mapped, width: %d, height: %d", width, height);
+  
+
+
+#if 0
   int iSizeComponent0 = video_width * video_height * 2;
   int iSizeComponent1 = video_width * video_height / 2;
   int iSizeComponent2 = video_width * video_height / 2;
+  GST_INFO("video_width: %d, video_height: %d", video_width, video_height);
+#else
+
+  int iSizeComponent0 = width * height * 2;
+  int iSizeComponent1 = width * height / 2;
+  int iSizeComponent2 = width * height / 2;
+  GST_INFO("video_width: %d, video_height: %d", video_width, video_height);
+
+#endif 
+
+  GST_INFO("Input buffer size: %d", info.size);
+  
+
+  GST_INFO("SizeComponent0: %d, SizeComponent1: %d, SizeComponent2: %d", iSizeComponent0, iSizeComponent1, iSizeComponent2);
 
   H266Frame h266_frame;
+  memset(&h266_frame, 0, sizeof(H266Frame));
+
+
+  GST_INFO("Configuring H266Frame");
+
 
   h266_frame.input_planes[0].payload = info.data;
   h266_frame.input_planes[1].payload = info.data + iSizeComponent0;
@@ -374,23 +410,28 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
   h266_frame.input_planes[1].payloadSize = iSizeComponent1;
   h266_frame.input_planes[2].payloadSize = iSizeComponent2;
 
-  h266_frame.input_planes[0].width = video_width;
-  h266_frame.input_planes[0].height = video_height;
-  h266_frame.input_planes[0].stride = video_width;
+  h266_frame.input_planes[0].width = width;
+  h266_frame.input_planes[0].height = height;
+  h266_frame.input_planes[0].stride = width;
 
-  h266_frame.input_planes[1].width = video_width >> 1;
-  h266_frame.input_planes[1].height = video_height >> 1;
-  h266_frame.input_planes[1].stride = video_width >> 1;
+  h266_frame.input_planes[1].width = width >> 1;
+  h266_frame.input_planes[1].height = height >> 1;
+  h266_frame.input_planes[1].stride = width >> 1;
 
-  h266_frame.input_planes[2].width = video_width >> 1;
-  h266_frame.input_planes[2].height = video_height >> 1;
-  h266_frame.input_planes[2].stride = video_width >> 1;
+  h266_frame.input_planes[2].width = width >> 1;
+  h266_frame.input_planes[2].height = height >> 1;
+  h266_frame.input_planes[2].stride = width >> 1;
 
   h266_frame.ctsValid = false;
   h266_frame.silence = false;
   h266_frame.outputPayloadAvailable = false;
 
+  GST_INFO("End of configuring H266Frame");
+
+  GST_INFO("Encode H266Frame");
   H266Status status = encodeFrame(&h266_frame);
+
+  GST_INFO("Finish Encode H266Frame");
 
   if (frame)
   {
@@ -574,6 +615,6 @@ plugin_init (GstPlugin * plugin)
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
     h266enc,
-    "A GStreamer plugin for VVC Encoder",
+    "A GStreamer plugin for VVC Encoder For Linux",
     plugin_init,
     PACKAGE_VERSION, GST_LICENSE_UNKNOWN, GST_PACKAGE_NAME, GST_PACKAGE_ORIGIN)

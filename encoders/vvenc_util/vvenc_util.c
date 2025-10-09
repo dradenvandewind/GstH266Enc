@@ -29,43 +29,43 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include "vvenc_util.h"
 
 #include "vvenc/vvenc.h"
 #include "vvenc/vvencCfg.h"
+
+#ifdef _WIN32
 #include <windows.h>
-
-static HINSTANCE hLibrary;
-
-static vvencEncoder *encoder;
-static vvenc_config vvenccfg;
-static bool bEncodeDone;
-static vvencAccessUnit AU;
-static vvencYUVBuffer cYUVInputBuffer;
-static vvencEncoder *enc;
-
-// typedef vvencYUVBuffer* (*VVENC_BUFFER_ALLOC)(void);
-// typedef void (*VVENC_BUFFER_FREE)(vvencYUVBuffer*, bool);
-// typedef void (*VVENC_BUFFER_DEFAULT)(vvencYUVBuffer*);
-// typedef void (*VVENC_ALLOC_BUFFER)(vvencYUVBuffer*, vvencChromaFormat, int, int);
-// typedef void (*VVENC_FREE_BUFFER)(vvencYUVBuffer*);
-
-// typedef vvencAccessUnit* (VVENC_ACCESSUNIT_ALLOC)(void);
-// typedef void (VVENC_ACCESSUNIT_FREE)(vvencAccessUnit*, bool);
+#else
+#include <dlfcn.h>
+#endif
 
 
-int vvenc_init(H266Config *config) {
-    h266_log_debug("vvenc_init called\n");
+typedef struct VVenCContext {
+    vvencEncoder *encoder;
+    vvenc_config vvenccfg;
+    bool bEncodeDone;
+    vvencAccessUnit AU;
+    vvencYUVBuffer cYUVInputBuffer;
+    vvencEncoder *enc;
+} VVenCContext;
 
-    bEncodeDone = false;
-    enc = vvenc_encoder_create();
+static VVenCContext g_ctx = {0};
 
-    if(enc == NULL) {
-        h266_log_error("Cannot create encoder\n");
+
+VVENC_LIBRARY_API int vvenc_init(H266Config *config) {
+    VVC_DEBUG("vvenc_init called\n");
+
+    g_ctx.bEncodeDone = false;
+    g_ctx.enc = vvenc_encoder_create();
+
+    if(g_ctx.enc == NULL) {
+        VVC_ERROR("Cannot create encoder\n");
         return -1;
     }
 
-    vvenc_init_default(&vvenccfg, config->width, \
+    vvenc_init_default(&g_ctx.vvenccfg, config->width, \
     config->height, config->framerate, config->bitrate, config->qp, 0);//vvencPresetMode::VVENC_FASTER
 
     // vvenc_set_msg_callback(&encoder->vvenccfg, NULL, &::msgFnc);  // register local (thread safe) logger (global logger is overwritten )
@@ -73,38 +73,40 @@ int vvenc_init(H266Config *config) {
     //@TODO: Validate the vvenc config here using a configuration parser Ref: parseCfg
     //@TODO: Refine setting bit depth as per the video format
     if(config->format == H266_VIDEO_FORMAT_I420_10LE)
-        vvenccfg.m_internChromaFormat = VVENC_CHROMA_420;
+        g_ctx.vvenccfg.m_internChromaFormat = VVENC_CHROMA_420;
     
-    vvenccfg.m_inputBitDepth[0] = config->depth[0];
-    vvenccfg.m_inputBitDepth[1] = config->depth[1];
-    vvenccfg.m_inputBitDepth[2] = config->depth[2];
-    vvenccfg.m_verbosity = 5;
+    g_ctx.vvenccfg.m_inputBitDepth[0] = config->depth[0];
+    g_ctx.vvenccfg.m_inputBitDepth[1] = config->depth[1];
+    g_ctx.vvenccfg.m_inputBitDepth[2] = config->depth[2];
+    g_ctx.vvenccfg.m_verbosity = 5;
 
-    int iRet = vvenc_encoder_open(enc, &vvenccfg);
+    int iRet = vvenc_encoder_open(g_ctx.enc, &g_ctx.vvenccfg);
 	if (0 != iRet)
 	{
-		h266_log_error("vvencapp cannot create encoder, error: %d %d",iRet, vvenc_get_last_error(enc));
-		vvenc_encoder_close(enc);
+		VVC_ERROR("vvencapp cannot create encoder, error: %d %d",iRet, vvenc_get_last_error(g_ctx.enc));
+		vvenc_encoder_close(g_ctx.enc);
 		return -1;
 	}
 
 	// get the adapted config
-	vvenc_get_config(enc, &vvenccfg);
+	vvenc_get_config(g_ctx.enc, &g_ctx.vvenccfg);
 
-    vvenc_accessUnit_default(&AU);
-	const int auSizeScale = vvenccfg.m_internChromaFormat <= VVENC_CHROMA_420 ? 2 : 3;
-	vvenc_accessUnit_alloc_payload(&AU, auSizeScale * vvenccfg.m_SourceWidth * vvenccfg.m_SourceHeight + 1024);
+    vvenc_accessUnit_default(&g_ctx.AU);
+	const int auSizeScale = g_ctx.vvenccfg.m_internChromaFormat <= VVENC_CHROMA_420 ? 2 : 3;
+	vvenc_accessUnit_alloc_payload(&g_ctx.AU, auSizeScale * g_ctx.vvenccfg.m_SourceWidth * g_ctx.vvenccfg.m_SourceHeight + 1024);
 
     return 0;
 }
 
-int vvenc_start() {    
+
+VVENC_LIBRARY_API int vvenc_start() {    
     return 0;
 }
 
-int vvenc_handle(H266Frame *frame) {
 
-  vvencYUVBuffer* ptrYUVInputBuffer = &cYUVInputBuffer;
+VVENC_LIBRARY_API int vvenc_handle(H266Frame *frame) {
+  VVC_INFO("vvenc_handle %p", frame);
+  vvencYUVBuffer* ptrYUVInputBuffer = &g_ctx.cYUVInputBuffer;
   H266Status status = H266_SUCCESS;
   if(frame == NULL || frame->silence) {
       ptrYUVInputBuffer = NULL;
@@ -134,61 +136,63 @@ int vvenc_handle(H266Frame *frame) {
 
 encode:
   // // call encode
-  int iRet = vvenc_encode(enc, ptrYUVInputBuffer, &AU, &bEncodeDone);
+  int iRet = vvenc_encode(g_ctx.enc, ptrYUVInputBuffer, &g_ctx.AU, &g_ctx.bEncodeDone);
   if (0 != iRet)
   {
-    h266_log_error("encode failed %d", iRet);
-    vvenc_YUVBuffer_free_buffer(&cYUVInputBuffer);
-    vvenc_accessUnit_free_payload(&AU);
-    vvenc_encoder_close(enc);
+    VVC_ERROR("encode failed %d", iRet);
+    vvenc_YUVBuffer_free_buffer(&g_ctx.cYUVInputBuffer);
+    vvenc_accessUnit_free_payload(&g_ctx.AU);
+    vvenc_encoder_close(g_ctx.enc);
     return -1;
   }
 
-  h266_log_debug("Encoder returns: %d\n", iRet);
+  VVC_DEBUG("Encoder returns: %d\n", iRet);
 
-  if (AU.payloadUsedSize > 0)
+  if (g_ctx.AU.payloadUsedSize > 0)
   {
-    h266_log_info("\nEncode frame: %d", AU.poc);
+    VVC_INFO("\nEncode frame: %d", g_ctx.AU.poc);
     frame->outputPayloadAvailable;
-    frame->output_payload = AU.payload;
-    frame->outputPayloadSize = AU.payloadUsedSize;
-    if(AU.sliceType == VVENC_I_SLICE)
+    frame->output_payload = g_ctx.AU.payload;
+    frame->outputPayloadSize = g_ctx.AU.payloadUsedSize;
+    if(g_ctx.AU.sliceType == VVENC_I_SLICE)
         frame->sliceType = H266_I_S;
 
     status = H266_PAYLOAD_AVAILABLE;
 
-    frame->dts = AU.dts + 0; //encoder->dts_offset;
-    frame->poc = AU.poc;
+    frame->dts = g_ctx.AU.dts + 0; //encoder->dts_offset;
+    frame->poc = g_ctx.AU.poc;
   }
 
-  if(bEncodeDone == true) {
+  if(g_ctx.bEncodeDone == true) {
     status = H266_ENCODING_DONE;
   }
 
    return status;
 }
 
-int vvenc_stop() {
+
+VVENC_LIBRARY_API int vvenc_stop() {
     return 0;
 }
 
-int vvenc_flush() {
+VVENC_LIBRARY_API int vvenc_flush() {
     return 0;
 }
 
-int vvenc_close() {
-    h266_log_debug("gst_h266_enc_close_encoder called\n");
+VVENC_LIBRARY_API int vvenc_close() {
+    VVC_DEBUG("gst_h266_enc_close_encoder called\n");
 
     //close encoder here
-    int iret = vvenc_encoder_close(enc);
+    int iret = vvenc_encoder_close(g_ctx.enc);
     if (0 != iret)
     {
-        h266_log_error("cannot close encoder: %d\n", iret);;
+        VVC_ERROR("cannot close encoder: %d\n", iret);;
     }
 
-    vvenc_accessUnit_free_payload(&AU);
+    vvenc_accessUnit_free_payload(&g_ctx.AU);
 
-    h266_log_debug("Encoder closed and access unit freed\n");
+    VVC_DEBUG("Encoder closed and access unit freed\n");
     
     return 0;
 }
+

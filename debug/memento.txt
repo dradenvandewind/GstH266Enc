@@ -1,0 +1,13 @@
+root@erwan-ThinkPad-W530:~/workingsrc/h266enc# ldd /usr/lib/x86_64-linux-gnu/libvvenc_lib.so 
+	linux-vdso.so.1 (0x00007ffdfc5a4000)
+	libvvenc.so => /lib/x86_64-linux-gnu/libvvenc.so (0x00007295d89fd000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007295d87d4000)
+	libstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007295d85a8000)
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007295d84c1000)
+	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007295d84a1000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007295d8f28000)
+root@erwan-ThinkPad-W530:~/workingsrc/h266enc# ldd /usr/lib/x86_64-linux-gnu/libuvg266_lib.so 
+	linux-vdso.so.1 (0x00007fff50bf0000)
+	libuvg266.so => /usr/local/lib/libuvg266.so (0x00007ea1f9610000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007ea1f93e7000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007ea1f9763000)

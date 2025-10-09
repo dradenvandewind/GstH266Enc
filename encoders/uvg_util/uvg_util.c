@@ -1,150 +1,157 @@
-/* Copyright (c) 2023, InterDigital Communications, Inc
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted (subject to the limitations in the disclaimer
- * below) provided that the following conditions are met:
- *
- * * Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
- * * Redistributions in binary form must reproduce the above copyright notice,
- *   this list of conditions and the following disclaimer in the documentation
- *   and/or other materials provided with the distribution.
- * * Neither the name of InterDigital Communications, Inc nor the names of its
- *   contributors may be used to endorse or promote products derived from this
- *   software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
- * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
- * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
- * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-
 #include "uvg_util.h"
-
+#include <stdlib.h>
+#include <string.h>
 #include "uvg266.h"
 #include "uvg266_internal.h"
 
 
-static uvg_api* api = NULL;
-static uvg_config* config = NULL;
-static uvg_encoder* enc = NULL;
+// Variables globales pour l'état de l'encodeur
+static int encoder_initialized = 0;
+static int encoder_started = 0;
+
+
+
+typedef struct UVGenCContext {
+    uvg_api* api;
+    uvg_config* config;
+    uvg_encoder* enc;
+    uvg_data_chunk* chunks_out;
+    uvg_picture *img_rec;
+    uvg_picture *img_src;
+    unsigned long pts_util;
+
+} UVGenCContext;
+
+static UVGenCContext g_ctx = {0};
 uint8_t* output_payload = NULL;
-static uvg_data_chunk* chunks_out = NULL;
-static uvg_picture *img_rec = NULL;
-static uvg_picture *img_src = NULL;
 
-static unsigned long pts_util = 0;
 
-int uvg_init(H266Config *h266_config) {
 
-    //get api here
-    api = uvg_api_get(h266_config->depth[0]);
-    if(!api) {
-        h266_log_error("Error in getting uvg api");
+UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
+{
+    const void *api_ptr = uvg_api_get(h266_config->depth[0]);
+    g_ctx.api = api_ptr;
+
+    if (!h266_config) {
+        UVG_ERROR("Configuration is NULL");
         return -1;
     }
 
     //init config here
-    config = api->config_alloc();
-    if(!config || !api->config_init(config)) {
-        h266_log_error("Error in config init for uvg encoder");
+    g_ctx.config = g_ctx.api->config_alloc();
+    if(!g_ctx.config || !g_ctx.api->config_init(g_ctx.config)) {
+        UVG_ERROR("Error in config init for uvg encoder");
         return -1;
     }
 
-    if (config->vps_period < 0) {
+     if (g_ctx.config->vps_period < 0) {
     // Disabling parameter sets is only possible when using uvg266 as
     // a library.
-        h266_log_error("Error in vps_period of config");
+        UVG_ERROR("Error in vps_period of config");
         return -1;
     }
 
     //set other important parameters here
-    config->width = h266_config->width;
-    config->height = h266_config->height;
-    config->qp = h266_config->qp;
-    config->framerate_num = h266_config->framerate;
-    config->framerate_denom = 1;
-    config->target_bitrate = h266_config->bitrate; //On setting this gives out error, "Bitrate set but rc-algorithm is turned off" if rc_algorithm not set
-    config->input_bitdepth = h266_config->depth[0];
-    config->file_format = UVG_FORMAT_YUV;
+    g_ctx.config->width = h266_config->width;
+    g_ctx.config->height = h266_config->height;
+    g_ctx.config->qp = h266_config->qp;
+    g_ctx.config->framerate_num = h266_config->framerate;
+    g_ctx.config->framerate_denom = 1;
+    g_ctx.config->target_bitrate = h266_config->bitrate; //On setting this gives out error, "Bitrate set but rc-algorithm is turned off" if rc_algorithm not set
+    g_ctx.config->input_bitdepth = h266_config->depth[0];
+    g_ctx.config->file_format = UVG_FORMAT_YUV;
 
     //not sure what this is
-    config->rc_algorithm = UVG_OBA;
+    g_ctx.config->rc_algorithm = UVG_OBA;
 
-    if(h266_config->format == H266_VIDEO_FORMAT_I420 || h266_config->format == H266_VIDEO_FORMAT_I420_10LE) {
-        config->input_format = UVG_FORMAT_P420;
+     if(h266_config->format == H266_VIDEO_FORMAT_I420 || h266_config->format == H266_VIDEO_FORMAT_I420_10LE) {
+        g_ctx.config->input_format = UVG_FORMAT_P420;
     }
 
     //open encoder here
-    enc = api->encoder_open(config);
-    if (!enc) {
-        h266_log_error("Failed to open encoder");
+    g_ctx.enc = g_ctx.api->encoder_open(g_ctx.config);
+    if (!g_ctx.enc) {
+        UVG_ERROR("Failed to open encoder");
         return -1;
     }
+    
 
-    h266_log_debug("uvg encoder opened\n");
-
+    
+    encoder_initialized = 1;
+    UVG_INFO("UVG266 encoder initialized successfully");
     return 0;
 }
 
-int uvg_start() {    
+UVG_LIBRARY_API int uvg_start(void)
+{
+    if (!encoder_initialized) {
+        UVG_ERROR("Encoder not initialized");
+        return -1;
+    }
+    
+    if (encoder_started) {
+        UVG_WARNING("Encoder already started");
+        return 0;
+    }
+    
+    UVG_INFO("Starting UVG266 encoder");
+    
+    // TODO: Démarrer l'encodeur UVG266 ici
+    // int result = uvg266_start(encoder_context);
+    
+    encoder_started = 1;
+    UVG_INFO("UVG266 encoder started successfully");
     return 0;
 }
 
-int uvg_handle(H266Frame *frame) {
+UVG_LIBRARY_API int uvg_handle(H266Frame *frame)
+{
     //point the frame handles her
     uint32_t len_out = 0;
     uvg_frame_info info_out;
     H266Status status = H266_SUCCESS;
 
     //allocate memory for cur img here
-    uvg_picture* cur_in_img = api->picture_alloc_csp(UVG_CSP_420, config->width, config->height);
+    uvg_picture* cur_in_img = g_ctx.api->picture_alloc_csp(UVG_CSP_420, g_ctx.config->width, g_ctx.config->height);
 
     if(cur_in_img == NULL) {
-        h266_log_error("Cannot allocate cur image");
+        UVG_ERROR("Cannot allocate cur image");
         return H266_ERR;
     }
+
+    if (!frame) {
+        UVG_ERROR("Frame is NULL");
+        return -1;
+    }
+
+
 
     //populate the frame pointers here
     memcpy(cur_in_img->y, frame->input_planes[0].payload, frame->input_planes[0].payloadSize);
     memcpy(cur_in_img->u, frame->input_planes[1].payload, frame->input_planes[1].payloadSize);
     memcpy(cur_in_img->v, frame->input_planes[2].payload, frame->input_planes[2].payloadSize);
 
-    cur_in_img->pts = pts_util++;
+    cur_in_img->pts = g_ctx.pts_util++;
 
-    if (!api->encoder_encode(enc,
+    if (!g_ctx.api->encoder_encode(g_ctx.enc,
                             cur_in_img,
-                            &chunks_out,
+                            &g_ctx.chunks_out,
                             &len_out,
-                            &img_rec,
-                            &img_src,
+                            &g_ctx.img_rec,
+                            &g_ctx.img_src,
                             &info_out)) {
-        h266_log_error("Failed to encode image.");
-        api->picture_free(cur_in_img);
+        UVG_ERROR("Failed to encode image.");
+        g_ctx.api->picture_free(cur_in_img);
         return H266_ERR;
     }
-
-    if (chunks_out == NULL && cur_in_img == NULL) {
+    if (g_ctx.chunks_out == NULL && cur_in_img == NULL) {
         // We are done since there is no more input and output left.
         return H266_ENCODING_DONE;
     }
 
-    if (chunks_out != NULL) {
+    if (g_ctx.chunks_out != NULL) {
 
-        h266_log_debug("UVG Payload Available");
+        UVG_DEBUG("UVG Payload Available");
 
         if(output_payload) {
             free(output_payload);
@@ -155,7 +162,7 @@ int uvg_handle(H266Frame *frame) {
 
         uint64_t written = 0;
         // Write data into the output file.
-        for (uvg_data_chunk *chunk = chunks_out; chunk != NULL; chunk = chunk->next) {
+        for (uvg_data_chunk *chunk = g_ctx.chunks_out; chunk != NULL; chunk = chunk->next) {
             assert(written + chunk->len <= len_out);
             memcpy(output_payload + written, chunk->data, chunk->len);
             written += chunk->len;
@@ -168,33 +175,63 @@ int uvg_handle(H266Frame *frame) {
         status = H266_PAYLOAD_AVAILABLE;
     }
 
-    api->picture_free(cur_in_img);
-    api->chunk_free(chunks_out);
-    api->picture_free(img_rec);
-    api->picture_free(img_src);
+    g_ctx.api->picture_free(cur_in_img);
+    g_ctx.api->chunk_free(g_ctx.chunks_out);
+    g_ctx.api->picture_free(g_ctx.img_rec);
+    g_ctx.api->picture_free(g_ctx.img_src);
 
+
+    if (!encoder_started) {
+        UVG_ERROR("Encoder not started");
+        return -1;
+    }
+    
     return status;
 }
 
-int uvg_stop() {
+UVG_LIBRARY_API int uvg_stop(void)
+{
+    if (!encoder_started) {
+        UVG_INFO("Encoder is stopped");
+        return 0;
+    }
+    
+    UVG_INFO("Stopping UVG266 encoder");
+    
+   
+    encoder_started = 0;
+    UVG_INFO("UVG266 encoder stopped successfully");
     return 0;
 }
 
-int uvg_flush() {
+UVG_LIBRARY_API int uvg_flush(void)
+{
+    if (!encoder_started) {
+        UVG_WARNING("Encoder not started, nothing to flush");
+        return 0;
+    }
+    
+    UVG_INFO("Flushing UVG266 encoder");
+    
+    // TODO: Flusher l'encodeur UVG266 ici
+    // int result = uvg266_flush(encoder_context);
+    
+    UVG_INFO("UVG266 encoder flushed successfully");
     return 0;
 }
 
-int uvg_close() {
-    api->chunk_free(chunks_out);
-    api->picture_free(img_rec);
-    api->picture_free(img_src);
+
+UVG_LIBRARY_API int uvg_close(void) {
+    g_ctx.api->chunk_free(g_ctx.chunks_out);
+    g_ctx.api->picture_free(g_ctx.img_rec);
+    g_ctx.api->picture_free(g_ctx.img_src);
 
     if(output_payload) {
         free(output_payload);
         output_payload = NULL;
     }
 
-    if (enc) api->encoder_close(enc);
+    if (g_ctx.enc) g_ctx.api->encoder_close(g_ctx.enc);
 
     return 0;
 }

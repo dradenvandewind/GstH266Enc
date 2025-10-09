@@ -27,9 +27,16 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <stdio.h>
+#include <dlfcn.h>
 
-#include "common.h"
-#include "vvenc_util.h"
+#ifndef ENCODE_UTIL_H
+#define ENCODE_UTIL_H
+
+#include "common/common.h"
+//#include "common.h"
+#include "../../encoders/vvenc_util/vvenc_util.h"
+#include <dlfcn.h>
 
 typedef int (*H266_INIT)(H266Config*);
 typedef int (*H266_START)();
@@ -58,7 +65,12 @@ struct ENCODER_UTIL {
 
 static H266EncoderType encoderType;
 static EncoderUtil encoderUtil;
+static void* hLibrary = NULL;
 
 H266Status initEncoder(H266EncoderType type, H266Config* vvencConfig);
 H266Status encodeFrame(H266Frame *frame);
 H266Status closeEncoder();
+
+
+
+#endif

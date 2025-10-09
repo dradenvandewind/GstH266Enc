@@ -29,39 +29,65 @@
  */
 
 #include <stdio.h>
-#include <windows.h>
+#include <dlfcn.h>
 
 #include "encode_util.h"
 
-static HINSTANCE hLibrary;
+static void* hLibrary;
 
 int initEncoder(H266EncoderType type, H266Config* h266Config) {
     encoderType = type;
 
     switch(encoderType) {
         case VVENC_ENCODER:
-        hLibrary = LoadLibrary("vvenc_lib.dll");
+        hLibrary = dlopen("/usr/lib/x86_64-linux-gnu/libvvenc_lib.so", RTLD_LAZY);
+        //nm /usr/lib/x86_64-linux-gnu/libvvenc.a | grep encode
 
         if (hLibrary != NULL) {
             
-            encoderUtil.init = (H266_INIT)GetProcAddress(hLibrary, "vvenc_init");
-            encoderUtil.handle = (H266_ENCODE)GetProcAddress(hLibrary, "vvenc_handle");
-            encoderUtil.close = (H266_CLOSE)GetProcAddress(hLibrary, "vvenc_close");
+            encoderUtil.init = (H266_INIT)dlsym(hLibrary, "vvenc_init");
+            if(encoderUtil.init == NULL) {
+                printf("Error loading vvenc_init: %s\n", dlerror());
+            }
+
+            encoderUtil.handle = (H266_ENCODE)dlsym(hLibrary, "vvenc_handle");
+            if(encoderUtil.handle == NULL) {
+                printf("Error loading vvenc_handle: %s\n", dlerror());
+            }
+
+            encoderUtil.close = (H266_CLOSE)dlsym(hLibrary, "vvenc_close");
+            if(encoderUtil.close == NULL) {
+                printf("Error loading vvenc_close: %s\n", dlerror());
+            }
 
             encoderUtil.init(h266Config);
+            //dlclose(hLibrary);
+            
         }
         break;
 
         case UVG_ENCODER:
-        hLibrary = LoadLibrary("uvg_lib.dll");
+        hLibrary = dlopen("/usr/lib/x86_64-linux-gnu/libuvg266_lib.so", RTLD_LAZY);
 
         if (hLibrary != NULL) {
             
-            encoderUtil.init = (H266_INIT)GetProcAddress(hLibrary, "uvg_init");
-            encoderUtil.handle = (H266_ENCODE)GetProcAddress(hLibrary, "uvg_handle");
-            encoderUtil.close = (H266_CLOSE)GetProcAddress(hLibrary, "uvg_close");
+            encoderUtil.init = (H266_INIT)dlsym(hLibrary, "uvg_init");
+            if (encoderUtil.init == NULL) {
+                printf("Error loading uvg_init: %s\n", dlerror());
+            }
+            encoderUtil.handle = (H266_ENCODE)dlsym(hLibrary, "uvg_handle");
+            if (encoderUtil.handle == NULL) {
+                printf("Error loading uvg_handle: %s\n", dlerror());
+            }
+
+            encoderUtil.close = (H266_CLOSE)dlsym(hLibrary, "uvg_close");
+            if (encoderUtil.close == NULL) {
+                printf("Error loading uvg_close: %s\n", dlerror());
+            }
+
 
             encoderUtil.init(h266Config);
+            //dlclose(hLibrary);
         }
         break;
 
@@ -72,11 +98,37 @@ int initEncoder(H266EncoderType type, H266Config* h266Config) {
 
     return H266_SUCCESS;
 }
-
+#if 0
 H266Status encodeFrame(H266Frame *frame) {
    return encoderUtil.handle(frame); 
+
+
 }
+#else
+H266Status encodeFrame(H266Frame *frame) {
+    printf("[DEBUG] encodeFrame called\n");
+    printf("[DEBUG] Frame pointer: %p\n", frame);
+    printf("[DEBUG] Encoder handle pointer: %p\n", encoderUtil.handle);
+
+    
+    if (!frame) {
+        printf("[ERROR] Frame is null!\n");
+        return H266_ERR;
+    }
+    
+    
+    H266Status status = encoderUtil.handle(frame);
+    
+    printf("[DEBUG] encodeFrame returned: %d\n", status);
+    return status;
+}
+#endif
 
 H266Status closeEncoder() {
-    return encoderUtil.close();
+    H266Status status = encoderUtil.close();
+    if (hLibrary != NULL) {
+        dlclose(hLibrary);
+        hLibrary = NULL;
+    }
+    return status;
 }

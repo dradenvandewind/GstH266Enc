@@ -32,8 +32,18 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <time.h>
+#include <string.h>
+unsigned char h266_log_level = H266_LOG_LEVEL_INFO;
 
-unsigned char h266_log_level = LOG_INFO;
+#ifdef _WIN32
+    #define ctime_r(t, buf) ctime_s(buf, sizeof(buf), t)
+#else
+    // Sur certains systèmes, ctime_r peut nécessiter _POSIX_C_SOURCE
+    #ifndef _POSIX_C_SOURCE
+        #define _POSIX_C_SOURCE 200112L
+    #endif
+#endif
+
 
 const char * h266_log_level_strings [] = {
 	"NONE", // 0
@@ -42,7 +52,7 @@ const char * h266_log_level_strings [] = {
 	"DEBUG",// 3
 	"ERROR" // 4
 };
-
+#if 0
 void h266_log_format(enum h266_log_level_e level, const char* tag, const char* message, va_list args) {
    if(level <= h266_log_level)
    {
@@ -56,24 +66,62 @@ void h266_log_format(enum h266_log_level_e level, const char* tag, const char* m
       fflush(stdout);
    }
 }
+#else
+void h266_log_format(h266_log_level_e level, const char* tag, const char* message, va_list args) {
+    time_t now;
+    time(&now);
+    char date[26];
+    ctime_r(&now, date);
+    
+    // Remove newline from ctime output
+    if (strlen(date) > 0) {
+        date[strlen(date) - 1] = '\0';
+    }
+    
+    const char* level_str;
+    switch (level) {
+        case H266_LOG_LEVEL_ERROR: level_str = "ERROR"; break;
+        case H266_LOG_LEVEL_WARNING: level_str = "WARNING"; break;
+        case H266_LOG_LEVEL_INFO: level_str = "INFO"; break;
+        case H266_LOG_LEVEL_DEBUG: level_str = "DEBUG"; break;
+        default: level_str = "UNKNOWN"; break;
+    }
+    
+    fprintf(stderr, "[%s] %s/%s: ", date, tag, level_str);
+    vfprintf(stderr, message, args);
+    fprintf(stderr, "\n");
+}
+#endif
 
-void h266_log_error(const char* message, ...) {  
+void h266_log_error(const char* tag,const char* message, ...) {  
    va_list args;
    va_start(args, message);
+#if 0   
    h266_log_format(LOG_ERROR, "H266_ERROR", message, args);
+#else
+   h266_log_format(H266_LOG_LEVEL_ERROR, tag, message, args);
+#endif
    va_end(args);
 }
 
-void h266_log_info(const char* message, ...) {   
+void h266_log_info(const char* tag,const char* message, ...) {   
    va_list args;
    va_start(args, message);
+#if 0
    h266_log_format(LOG_INFO, "H266_INFO", message, args);
+#else
+   h266_log_format(H266_LOG_LEVEL_INFO, tag, message, args);
+#endif
    va_end(args);
 }
 
-void h266_log_debug(const char* message, ...) {
+void h266_log_debug(const char* tag,const char* message, ...) {
    va_list args;
    va_start(args, message);
+#if 0   
    h266_log_format(LOG_DEBUG, "H266_DEBUG", message, args);
+#else
+   h266_log_format(H266_LOG_LEVEL_DEBUG, tag, message, args);
+#endif
    va_end(args);
 }

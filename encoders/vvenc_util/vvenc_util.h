@@ -28,28 +28,47 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "common.h"
-#include "log.h"
+#include "../common/common.h"
 
-#define VVENC_LIBRARY_EXPORT
+#include "../common/log.h"
+#include <dlfcn.h>
 
-#if defined(VVENC_LIBRARY_EXPORT) // inside DLL
-#   define VVENC_LIBRARY_API   __declspec(dllexport)
-#else // outside DLL
-#   define VVENC_LIBRARY_API   __declspec(dllimport)
-#endif  // XYZLIBRARY_EXPORT
+#include <stdint.h>
+#include <stddef.h>
+#include <stdio.h>
+
+
+
+// Définitions pour Linux
+#ifdef __linux__
+    #define VVENC_LIBRARY_API __attribute__((visibility("default")))
+#else
+    // Pour Windows (conservé pour compatibilité)
+    #if defined(VVENC_LIBRARY_EXPORT) // inside DLL
+        #define VVENC_LIBRARY_API   __declspec(dllexport)
+    #else // outside DLL
+        #define VVENC_LIBRARY_API   __declspec(dllimport)
+    #endif
+#endif
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-    VVENC_LIBRARY_API int vvenc_init(H266Config *config);
-    VVENC_LIBRARY_API int vvenc_start();
-    VVENC_LIBRARY_API int vvenc_handle(H266Frame *frame);
-    VVENC_LIBRARY_API int vvenc_stop();
-    VVENC_LIBRARY_API int vvenc_flush();
-    VVENC_LIBRARY_API int vvenc_close();
+
+#define VVC_ERROR(fmt, ...) fprintf(stderr, "[VVC_ERROR] " fmt "\n", ##__VA_ARGS__)
+#define VVC_WARN(fmt, ...)  fprintf(stderr, "[VVC_WARN] " fmt "\n", ##__VA_ARGS__)
+#define VVC_INFO(fmt, ...)  fprintf(stdout, "[VVC_INFO] " fmt "\n", ##__VA_ARGS__)
+#define VVC_DEBUG(fmt, ...) fprintf(stdout, "[VVC_DEBUG] " fmt "\n", ##__VA_ARGS__)
+
+
+VVENC_LIBRARY_API int vvenc_init(H266Config *config);
+VVENC_LIBRARY_API int vvenc_start();
+VVENC_LIBRARY_API int vvenc_handle(H266Frame *frame);
+VVENC_LIBRARY_API int vvenc_stop();
+VVENC_LIBRARY_API int vvenc_flush();
+VVENC_LIBRARY_API int vvenc_close();
 
 #ifdef __cplusplus 
 }
