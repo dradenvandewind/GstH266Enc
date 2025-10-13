@@ -1,12 +1,11 @@
-## GSTH266Enc: A Gstreamer Plugin for VVC Encoder
+## GSTH266Enc: A Gstreamer Plugin for VVC Encoder , Forked For Linux support
 An open-source GStreamer Plugin for VVC encoder (h266enc)
 
 This plugin is still under development and will continue to improve by:
 
 1. extending the API layer to support other known or future VVC encoder implementations
 2. exposing additional encoder properties 
-3. extending support to other platforms (e.g. linux)
-4. ... 
+3. 
 
 ## Plugin Architecture 
 Following is a pictorial representation of the Gstreamer plugin architecture
@@ -15,11 +14,10 @@ Following is a pictorial representation of the Gstreamer plugin architecture
 
 ## Prerequisites
 
-Prerequisites for building the Gstreamer plugin on Windows are:
+Prerequisites for building the Gstreamer plugin on Linux are:
 
-- Visual Studio 19 (for MSVC compiler (version 19.29.30038.1))
-- meson (version 0.59.0)
-- Gstreamer (version 1.20.1)
+- meson (version 1.4.0)
+- Gstreamer (version 1.26.2)
 - VVC encoder library 
 
 VVC encoder libraries currently supported by the plugin are:
@@ -29,54 +27,72 @@ VVC encoder libraries currently supported by the plugin are:
 
 ## Installation
 
-### MSVC compiler
-The MSVC compiler is available as part of the visual studio for windows installation. A different C/C++ compiler for windows can be used but is not tested.  
+### GCC compiler
+gcc --version \n
+gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0 \n
+Copyright (C) 2021 Free Software Foundation, Inc. \n
+This is free software; see the source for copying conditions.  There is NO \n
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. \n
 
 ### Meson
 
+pip install "setuptools<65" meson==1.4.0
+
 To install Meson, follow the instructions on https://mesonbuild.com/Getting-meson.html
 
-Python 3.7 or up is required for meson. 
+Python 3.10.12 or up is required for meson. 
 
 ### GStreamer
-1. Download the Runtime and Development installer. The installers are available under the following [link](https://gstreamer.freedesktop.org/data/pkg/windows/). In this project we are using x64.
+1 -  Compile Gstreamer 1.26.2
 
-    - We are developing this project against Gstreamer 1.20.1. To download the installers for Gstreamer 1.20.1 show the [link](https://gstreamer.freedesktop.org/data/pkg/windows/1.20.1/msvc/)
+TAG=1.26.2
 
-    - More information on installation of Gstreamer on Windows is available on the [official website](https://gstreamer.freedesktop.org/documentation/installing/on-windows.html#download-and-install-gstreamer-binaries)
-
-
-2. Run the installers. You will be prompted with details on where to install `gstreamer`, usually it is in `C:\`
-
-    - running the devel package will prompt you with three options ie. `Typical`, `Custom`, `Complete` 
-
-    - choose the complete installation to install pkgconfig files 
-
-
-3. Setting the environment varibles: (assuming gstreamer is installed in C:\)
-
-    - Add `C:\gstreamer\1.0\msvc_x86_64\bin` to PATH
-
-    - Set `PKG_CONFIG_PATH` to `C:\gstreamer\1.0\msvc_x86_64\lib\pkgconfig` 
-
-    - Set `GSTREAMER_ROOT_X86_64` to `C:\gstreamer\1.0\msvc_x86_64`
+git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git && \
+  cd gstreamer && \
+  git checkout tags/$TAG && \
+  mkdir build && cd build && \
+  meson setup ..            \
+       -Dgpl=enabled -Dugly=enabled -Dgst-plugins-ugly:x264=enabled \
+       -Dgst-plugins-bad:x265=enabled -Dbad=enabled \
+       --prefix=/usr       \
+       --buildtype=release && \
+  ninja && \
+  ninja install && \
+  ldconfig
 
 
-4. Reboot your system
-
-5. Open terminal and check `gst-launch-1.0`
+2. Open terminal and check `gst-launch-1.0`
 
 ### VVC encoder library
 
 #### VVenC
 - Checkout the latest code from [here](https://github.com/fraunhoferhhi/vvenc). 
-- Follow the [build](https://github.com/fraunhoferhhi/vvenc/wiki/Build) process to generate the shared library (vvenc.dll)
-- install the vvenc.dll to the GStreamer install directory under `C:\gstreamer\1.0\msvc_x86_64\bin\`
+- Follow the [build](https://github.com/fraunhoferhhi/vvenc/wiki/Build) process to generate the shared library (libvvenc.so)
+- install the libvvenc.so to the GStreamer install directory under `/usr/lib/x86_64-linux-gnu/`
+ - build instruction:
+   git clone https://github.com/fraunhoferhhi/vvenc.git vvenc-1.4.0 && \
+	cd vvenc-1.4.0 && \
+	git checkout tags/v1.4.0 && \
+	mkdir build && \
+	cd build && \
+	cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON && \
+	make && \
+	make install && \
+	ldconfig && cd ../..
+
 
 #### UVG266
 - Checkout the latest code from [here](https://github.com/ultravideo/uvg266)
-- Follow the [build](https://github.com/ultravideo/uvg266#compiling-uvg266) process to generate the shared library (uvg266.dll)
-- install the generated uvg266.dll to the Gstreamer install directory under `C:\gstreamer\1.0\msvc_x86_64\bin\`
+- Follow the [build](https://github.com/ultravideo/uvg266#compiling-uvg266) process to generate the shared library (libuvg266.so)
+- install the generated libuvg266.so to the Gstreamer install directory under `/usr/lib/x86_64-linux-gnu/`
+- build instruction :
+		git clone https://github.com/ultravideo/uvg266.git && \
+		cd uvg266 && \
+		git checkout tags/v0.4.1 && \
+		cd build && \
+		cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON && \
+		make && \
+		make install && cd ../..
 
 
 ## Compiling the GSTH266enc plugin
@@ -107,10 +123,10 @@ meson ../. -DENCODER_TYPE=UVG -DENCODER_LIB_PATH=<path to UVG266 lib folder> -DE
 ```
 
 After successful compilation, following shared libraries are generated that need to be copied to the Gstreamer installation directory:
-- gsth266enc.dll (under builddir/plugin/ directory)
-    - This is copied to the GStreamer-1.0 lib directory at `C:\gstreamer\1.0\msvc_x86_64\lib\gstreamer-1.0\`
-- <encoder_type>_lib.dll depending on the encoder type (under builddir/encoders/<encoder_type>_utils/) where encoder_type={vvenc or uvg}
-    - This is copied to the GStreamer-1.0 bin directory at `C:\gstreamer\1.0\msvc_x86_64\bin\`
+- libgsth266enc.so (under builddir/plugin/ directory)
+    - This is copied to the GStreamer-1.0 lib directory at `/usr/lib/x86_64-linux-gnu/gstreamer-1.0/`
+- <encoder_type>_lib.so depending on the encoder type (under builddir/encoders/<encoder_type>_utils/) where encoder_type={vvenc or uvg}
+    - This is copied to the GStreamer-1.0 bin directory at `/usr/lib/x86_64-linux-gnu/`
 
 In the next section, we demonstrate the usage of the plugin
 
