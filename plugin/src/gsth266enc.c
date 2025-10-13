@@ -32,8 +32,6 @@
 #  include <config.h>
 #endif
 
-#define ENCODER_TYPE "VVENC_ENCODER"
-//UVG_ENCODER
 #include "gsth266enc.h"
 
 #include <gst/pbutils/pbutils.h>

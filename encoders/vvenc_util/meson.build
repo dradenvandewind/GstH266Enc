@@ -14,7 +14,7 @@ h266_common_inc = '../../../common'
 # Pour Linux, on utilise dlopen donc pas besoin de lier statiquement
 # On déclare simplement les dépendances pour les en-têtes
 vvenc_dependency = declare_dependency(
-  include_directories : [vvenc_util_inc, h266_common_inc, vvenc_inc_dir]
+  include_directories : [vvenc_util_inc, h266_common_inc, vvenc_inc_dir, configuration_inc]
 )
 
 # Le plugin h266enc

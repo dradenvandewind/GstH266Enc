@@ -43,7 +43,8 @@ uvg_include_dirs = [
   include_directories(uvg_inc),
   include_directories(uvg_inc_extras),
   include_directories(uvg_inc_strategies),
-  include_directories(uvg_inc_threadwrapper)
+  include_directories(uvg_inc_threadwrapper),
+  configuration_inc
 ]
 
 # Dépendance UVG

@@ -25,6 +25,7 @@ gst_req = '>= @0@.@1@.0'.format(gst_version_major, gst_version_minor)
 
 cc = meson.get_compiler('c')
 cpp = meson.get_compiler('cpp')
+api_version = '1.0'
 
 # Dependencies
 gst_dep = dependency('gstreamer-1.0', version : gst_req,
@@ -76,6 +77,15 @@ ENCODER_LIB_PATH=get_option('ENCODER_LIB_PATH')
 ENCODER_INCLUDE_PATH=get_option('ENCODER_INCLUDE_PATH')
 endif
 
+cdata = configuration_data()
+cdata.set_quoted('PACKAGE_VERSION', gst_version)
+cdata.set_quoted('PACKAGE', 'gst-h266enc-plugin')
+cdata.set_quoted('GST_API_VERSION', api_version)
+cdata.set_quoted('GST_PACKAGE_NAME', 'GStreamer H266 Encoder Plug-ins')
+cdata.set_quoted('GST_PACKAGE_ORIGIN', 'https://github.com/InterDigitalInc')
+cdata.set_quoted('ENCODER_TYPE', encoder_type)
+configure_file(output : 'config.h', configuration : cdata)
+configuration_inc = include_directories('.')
 
 # Build the plugin - compile C files as C and C++ files as C++
 gsth266enc_c_sources = [
