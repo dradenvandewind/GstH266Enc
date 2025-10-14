@@ -36,6 +36,8 @@
 #include <gst/video/video.h>
 #include <gst/video/gstvideoencoder.h>
 
+
+
 G_BEGIN_DECLS
 
 #define GST_TYPE_H266ENC \
@@ -59,6 +61,7 @@ struct _Gsth266enc
   gboolean silent;
 
   bool bEncodeDone;
+  bool bEncodeInitDone;
 
   guint bitrate;
   gint qp;

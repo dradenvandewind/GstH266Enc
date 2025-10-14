@@ -78,6 +78,14 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
         g_ctx.config->input_format = UVG_FORMAT_P420;
     }
 
+    g_return_val_if_fail(h266_config != NULL, FALSE);
+    g_assert(h266_config->width > 0 && h266_config->height > 0);
+
+    UVG_INFO("Initializing UVG266: %dx%d, bitrate=%d, qp=%d", 
+         h266_config->width, h266_config->height, 
+         h266_config->bitrate, h266_config->qp);
+
+
     //open encoder here
     g_ctx.enc = g_ctx.api->encoder_open(g_ctx.config);
     if (!g_ctx.enc) {

@@ -246,7 +246,9 @@ gst_h266_enc_stop (GstVideoEncoder * encoder)
 static gboolean
 gst_h266_enc_init_encoder (Gsth266enc * encoder)
 {
-  GST_INFO ("gst_h266_enc_init_encoder called"); 
+  GST_INFO ("gst_h266_enc_init_encoder called");
+  encoder->bEncodeInitDone = false;
+
 
   H266Config h266Config;
   H266Status status;
@@ -260,11 +262,38 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
   h266Config.depth[1] = encoder->input_state->info.finfo->depth[1];
   h266Config.depth[2] = encoder->input_state->info.finfo->depth[2];
   if(encoder->input_state->info.finfo->format == GST_VIDEO_FORMAT_I420_10LE)
+  {
     h266Config.format = H266_VIDEO_FORMAT_I420_10LE;
+  }
+  else if(encoder->input_state->info.finfo->format == GST_VIDEO_FORMAT_I420)
+  {
+    h266Config.format = H266_VIDEO_FORMAT_I420;
+  }
+  else
+  {
+    GST_ERROR("Input format not supported");
+    GST_ERROR(" You need use I420_10LE or I420");
+    return FALSE;
+  }
+
+
   if( strcmp(ENCODER_TYPE, "VVENC_ENCODER") == 0) {
+    if(h266Config.depth[0] != 10 ) {
+      GST_ERROR("VVENC_ENCODER only supports 10 bit input");
+      exit(1);
+      return FALSE;
+    }
+
     status = initEncoder(VVENC_ENCODER, &h266Config);
   }
   else if (strcmp(ENCODER_TYPE, "UVG_ENCODER") == 0) {
+    if(h266Config.depth[0] != 8 ) {
+      GST_ERROR("UVG_ENCODER only supports 8 bit input");
+      exit(2);
+
+      return FALSE;
+    }
+
     status = initEncoder(UVG_ENCODER, &h266Config);
   }
   else {
@@ -276,6 +305,7 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
   }
   else {
     GST_INFO("Encoder %s initialized successfully, status %d ", ENCODER_TYPE, status);
+    encoder->bEncodeInitDone = true;
   }
 
 
@@ -293,11 +323,17 @@ gst_h266_enc_close_encoder (Gsth266enc * encoder)
   GST_INFO("gst_h266_enc_close_encoder called\n");
 
   //close encoder here
-
-  H266Status status = closeEncoder();
-  if(status != H266_SUCCESS) {
+  if(encoder->bEncodeInitDone) {
+    GST_INFO("Encoder not initialized, nothing to close\n");
+    H266Status status = closeEncoder();
+    if(status != H266_SUCCESS) {
     GST_ERROR("Error closing encoder: %d", status);
-  }
+    }
+    
+  } 
+
+  
+  
 
   GST_INFO("Encoder closed and access unit freed\n");
 }
@@ -388,10 +424,23 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
 
 #endif 
 
+// Get strides
+  const gsize y_stride = GST_VIDEO_INFO_PLANE_STRIDE(video_info, 0);
+  const gsize u_stride = GST_VIDEO_INFO_PLANE_STRIDE(video_info, 1);
+  const gsize v_stride = GST_VIDEO_INFO_PLANE_STRIDE(video_info, 2);
+
+  // Get plane offsets (more reliable than assuming layout)
+  const gsize y_offset = GST_VIDEO_INFO_PLANE_OFFSET(video_info, 0);
+  const gsize u_offset = GST_VIDEO_INFO_PLANE_OFFSET(video_info, 1);
+  const gsize v_offset = GST_VIDEO_INFO_PLANE_OFFSET(video_info, 2);
+
+
   GST_INFO("Input buffer size: %d", info.size);
   
 
   GST_INFO("SizeComponent0: %d, SizeComponent1: %d, SizeComponent2: %d", iSizeComponent0, iSizeComponent1, iSizeComponent2);
+  GST_INFO("Y stride: %d, U stride: %d, V stride: %d", y_stride, u_stride, v_stride);
+
 
   H266Frame h266_frame;
   memset(&h266_frame, 0, sizeof(H266Frame));
@@ -399,7 +448,31 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
 
   GST_INFO("Configuring H266Frame");
 
+  if (encoderType == VVENC_ENCODER) {
+    //VVENC supports only 8 bit depth
+    h266_frame.input_planes[0].payload = info.data;
+    h266_frame.input_planes[1].payload = info.data + iSizeComponent0;
+    h266_frame.input_planes[2].payload = info.data + iSizeComponent0 + iSizeComponent1;
 
+    h266_frame.input_planes[0].payloadSize = iSizeComponent0;
+    h266_frame.input_planes[1].payloadSize = iSizeComponent1;
+    h266_frame.input_planes[2].payloadSize = iSizeComponent2;
+  }
+  else
+  {
+    //UVG supports 8 bit and 10 bit depth
+    h266_frame.input_planes[0].payload = info.data + y_offset;
+    h266_frame.input_planes[1].payload = info.data + u_offset;
+    h266_frame.input_planes[2].payload = info.data + v_offset;
+
+    h266_frame.input_planes[0].payloadSize = y_stride * height;
+    h266_frame.input_planes[1].payloadSize = u_stride * (height / 2);
+    h266_frame.input_planes[2].payloadSize = v_stride * (height / 2);
+
+  }
+
+#if 0
+#if 0
   h266_frame.input_planes[0].payload = info.data;
   h266_frame.input_planes[1].payload = info.data + iSizeComponent0;
   h266_frame.input_planes[2].payload = info.data + iSizeComponent0 + iSizeComponent1;
@@ -407,6 +480,27 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
   h266_frame.input_planes[0].payloadSize = iSizeComponent0;
   h266_frame.input_planes[1].payloadSize = iSizeComponent1;
   h266_frame.input_planes[2].payloadSize = iSizeComponent2;
+#else
+  // h266_frame.input_planes[0].payload = info.data + y_offset;
+  // h266_frame.input_planes[1].payload = info.data + u_offset;
+  // h266_frame.input_planes[2].payload = info.data + v_offset;
+  h266_frame.input_planes[0].payload = info.data;
+  h266_frame.input_planes[1].payload = info.data + width*height;
+
+  h266_frame.input_planes[2].payload = info.data + width*height*5/2;
+
+
+
+
+
+  h266_frame.input_planes[0].payloadSize = y_stride * height;
+  h266_frame.input_planes[1].payloadSize = u_stride * (height / 2);
+  h266_frame.input_planes[2].payloadSize = v_stride * (height / 2);
+
+
+#endif
+#endif
+
 
   h266_frame.input_planes[0].width = width;
   h266_frame.input_planes[0].height = height;

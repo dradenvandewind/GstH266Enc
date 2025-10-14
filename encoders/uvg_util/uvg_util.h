@@ -7,6 +7,12 @@
 
 #include "common.h"
 
+#include <assert.h>
+
+#define g_return_val_if_fail(expr, val) do { if (!(expr)) return (val); } while (0)
+#define g_assert(expr) assert(expr)
+#define FALSE 0
+#define TRUE 1
 
 #ifdef __cplusplus
 extern "C" {
