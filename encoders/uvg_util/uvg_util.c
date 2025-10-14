@@ -5,12 +5,6 @@
 #include "uvg266_internal.h"
 
 
-// Variables globales pour l'état de l'encodeur
-static int encoder_initialized = 0;
-static int encoder_started = 0;
-
-
-
 typedef struct UVGenCContext {
     uvg_api* api;
     uvg_config* config;
@@ -28,14 +22,20 @@ uint8_t* output_payload = NULL;
 
 
 UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
-{
-    const void *api_ptr = uvg_api_get(h266_config->depth[0]);
-    g_ctx.api = api_ptr;
+{   
+    UVG_INFO("depth %d",h266_config->depth[0]);
+    g_ctx.api = uvg_api_get(h266_config->depth[0]);
+
+    if(!g_ctx.api) {
+        UVG_ERROR("Error in getting uvg api");
+        return -1;
+    }
 
     if (!h266_config) {
         UVG_ERROR("Configuration is NULL");
         return -1;
     }
+
 
     //init config here
     g_ctx.config = g_ctx.api->config_alloc();
@@ -60,6 +60,16 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
     g_ctx.config->target_bitrate = h266_config->bitrate; //On setting this gives out error, "Bitrate set but rc-algorithm is turned off" if rc_algorithm not set
     g_ctx.config->input_bitdepth = h266_config->depth[0];
     g_ctx.config->file_format = UVG_FORMAT_YUV;
+# if 1
+    UVG_INFO("WIDTH %d",g_ctx.config->width);
+    UVG_INFO("HEIGHT %d",g_ctx.config->height);
+    UVG_INFO("QP %d",g_ctx.config->qp);
+    UVG_INFO("FRAMERATE %d",g_ctx.config->framerate_num);
+    UVG_INFO("BITRATE %d",g_ctx.config->target_bitrate);
+    UVG_INFO("INPUT BITDEPTH %d",g_ctx.config->input_bitdepth);
+    UVG_INFO("FILE FORMAT %d",g_ctx.config->file_format);
+    
+#endif 
 
     //not sure what this is
     g_ctx.config->rc_algorithm = UVG_OBA;
@@ -74,32 +84,15 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
         UVG_ERROR("Failed to open encoder");
         return -1;
     }
-    
+   
 
-    
-    encoder_initialized = 1;
-    UVG_INFO("UVG266 encoder initialized successfully");
+    UVG_INFO("UVG266 uvg encoder opened");
     return 0;
 }
 
 UVG_LIBRARY_API int uvg_start(void)
 {
-    if (!encoder_initialized) {
-        UVG_ERROR("Encoder not initialized");
-        return -1;
-    }
-    
-    if (encoder_started) {
-        UVG_WARNING("Encoder already started");
-        return 0;
-    }
-    
-    UVG_INFO("Starting UVG266 encoder");
-    
-    // TODO: Démarrer l'encodeur UVG266 ici
-    // int result = uvg266_start(encoder_context);
-    
-    encoder_started = 1;
+
     UVG_INFO("UVG266 encoder started successfully");
     return 0;
 }
@@ -174,57 +167,43 @@ UVG_LIBRARY_API int uvg_handle(H266Frame *frame)
 
         status = H266_PAYLOAD_AVAILABLE;
     }
+    if (g_ctx.api)
+    {
+        UVG_DEBUG("Freeing pointer");
+        g_ctx.api->picture_free(cur_in_img);
+        g_ctx.api->chunk_free(g_ctx.chunks_out);
+        g_ctx.api->picture_free(g_ctx.img_rec);
+        g_ctx.api->picture_free(g_ctx.img_src);
 
-    g_ctx.api->picture_free(cur_in_img);
-    g_ctx.api->chunk_free(g_ctx.chunks_out);
-    g_ctx.api->picture_free(g_ctx.img_rec);
-    g_ctx.api->picture_free(g_ctx.img_src);
-
-
-    if (!encoder_started) {
-        UVG_ERROR("Encoder not started");
-        return -1;
     }
+
     
     return status;
 }
 
 UVG_LIBRARY_API int uvg_stop(void)
 {
-    if (!encoder_started) {
-        UVG_INFO("Encoder is stopped");
-        return 0;
-    }
-    
-    UVG_INFO("Stopping UVG266 encoder");
-    
-   
-    encoder_started = 0;
     UVG_INFO("UVG266 encoder stopped successfully");
     return 0;
 }
 
 UVG_LIBRARY_API int uvg_flush(void)
 {
-    if (!encoder_started) {
-        UVG_WARNING("Encoder not started, nothing to flush");
-        return 0;
-    }
-    
     UVG_INFO("Flushing UVG266 encoder");
-    
-    // TODO: Flusher l'encodeur UVG266 ici
-    // int result = uvg266_flush(encoder_context);
-    
+ 
     UVG_INFO("UVG266 encoder flushed successfully");
     return 0;
 }
 
 
 UVG_LIBRARY_API int uvg_close(void) {
-    g_ctx.api->chunk_free(g_ctx.chunks_out);
-    g_ctx.api->picture_free(g_ctx.img_rec);
-    g_ctx.api->picture_free(g_ctx.img_src);
+    if (g_ctx.api)
+    {
+        UVG_DEBUG("Freeing pointer");
+        g_ctx.api->chunk_free(g_ctx.chunks_out);
+        g_ctx.api->picture_free(g_ctx.img_rec);
+        g_ctx.api->picture_free(g_ctx.img_src);
+    }
 
     if(output_payload) {
         free(output_payload);
