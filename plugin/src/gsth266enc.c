@@ -122,11 +122,11 @@ static gboolean gst_h266enc_sink_event (GstPad * pad,
 
 // Set the input chroma format to I420 and I420_10LE
 // TODO: get the supported chroma format from the encoder library
-static void 
+static void
 gst_h266enc_set_input_chroma_format(GstStructure *gststructure)
-{  
+{
   GValue formats = G_VALUE_INIT;
-  GValue format = G_VALUE_INIT;  
+  GValue format = G_VALUE_INIT;
 
   g_value_init (&formats, GST_TYPE_LIST);
   g_value_init (&format, G_TYPE_STRING);
@@ -137,10 +137,10 @@ gst_h266enc_set_input_chroma_format(GstStructure *gststructure)
   g_value_set_string (&format, "I420_10LE");
   gst_value_list_append_value (&formats, &format);
 
-  if (gst_value_list_get_size (&formats) != 0) 
+  if (gst_value_list_get_size (&formats) != 0)
   {
-    gst_structure_take_value (gststructure, "format", &formats);    
-  }  
+    gst_structure_take_value (gststructure, "format", &formats);
+  }
 }
 
 /* GObject vmethod implementations */
@@ -329,11 +329,11 @@ gst_h266_enc_close_encoder (Gsth266enc * encoder)
     if(status != H266_SUCCESS) {
     GST_ERROR("Error closing encoder: %d", status);
     }
-    
-  } 
 
-  
-  
+  }
+
+
+
 
   GST_INFO("Encoder closed and access unit freed\n");
 }
@@ -405,9 +405,10 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
   }
   const guint width = GST_VIDEO_INFO_WIDTH(video_info);
   const guint height = GST_VIDEO_INFO_HEIGHT(video_info);
+  const guint in_bitdepth = video_info->finfo->depth[0];
 
   GST_INFO("Input buffer mapped, width: %d, height: %d", width, height);
-  
+
 
 
 #if 0
@@ -416,13 +417,16 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
   int iSizeComponent2 = video_width * video_height / 2;
   GST_INFO("video_width: %d, video_height: %d", video_width, video_height);
 #else
+  unsigned bytes_per_sample =  in_bitdepth > 8 ? 2 : 1;
+  unsigned y_buf_bytes = width * height * bytes_per_sample;
+  unsigned uv_buf_bytes = width * height / 2;//y_buf_bytes >> 1;
 
-  int iSizeComponent0 = width * height * 2;
-  int iSizeComponent1 = width * height / 2;
-  int iSizeComponent2 = width * height / 2;
+  int iSizeComponent0 = y_buf_bytes;//width * height * bytes_per_sample;
+  int iSizeComponent1 = uv_buf_bytes;//width * height / 2;
+  int iSizeComponent2 = uv_buf_bytes;//width * height / 2;
   GST_INFO("video_width: %d, video_height: %d", video_width, video_height);
 
-#endif 
+#endif
 
 // Get strides
   const gsize y_stride = GST_VIDEO_INFO_PLANE_STRIDE(video_info, 0);
@@ -436,10 +440,12 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
 
 
   GST_INFO("Input buffer size: %d", info.size);
-  
+
 
   GST_INFO("SizeComponent0: %d, SizeComponent1: %d, SizeComponent2: %d", iSizeComponent0, iSizeComponent1, iSizeComponent2);
   GST_INFO("Y stride: %d, U stride: %d, V stride: %d", y_stride, u_stride, v_stride);
+  GST_INFO("Y offset: %d, U offset: %d, V offset: %d", y_offset, u_offset, v_offset);
+
 
 
   H266Frame h266_frame;
@@ -448,8 +454,18 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
 
   GST_INFO("Configuring H266Frame");
 
+  h266_frame.input_planes[0].payload = info.data;
+    h266_frame.input_planes[1].payload = info.data + iSizeComponent0;
+    h266_frame.input_planes[2].payload = info.data + iSizeComponent0 + iSizeComponent1;
+
+    h266_frame.input_planes[0].payloadSize = iSizeComponent0;
+    h266_frame.input_planes[1].payloadSize = iSizeComponent1;
+    h266_frame.input_planes[2].payloadSize = iSizeComponent2;
+
+
+#if 0
   if (encoderType == VVENC_ENCODER) {
-    //VVENC supports only 8 bit depth
+    //VVENC supports only 10 bit depth
     h266_frame.input_planes[0].payload = info.data;
     h266_frame.input_planes[1].payload = info.data + iSizeComponent0;
     h266_frame.input_planes[2].payload = info.data + iSizeComponent0 + iSizeComponent1;
@@ -460,16 +476,18 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
   }
   else
   {
-    //UVG supports 8 bit and 10 bit depth
+    //UVG supports 8 bit
     h266_frame.input_planes[0].payload = info.data + y_offset;
     h266_frame.input_planes[1].payload = info.data + u_offset;
     h266_frame.input_planes[2].payload = info.data + v_offset;
 
-    h266_frame.input_planes[0].payloadSize = y_stride * height;
-    h266_frame.input_planes[1].payloadSize = u_stride * (height / 2);
-    h266_frame.input_planes[2].payloadSize = v_stride * (height / 2);
+    h266_frame.input_planes[0].payloadSize = width * height;
+    h266_frame.input_planes[1].payloadSize = 16384;//width/2 * height>>1;
+    h266_frame.input_planes[2].payloadSize = 16384;//width>>1 * height>>1;
 
   }
+#endif
+
 
 #if 0
 #if 0
@@ -531,7 +549,7 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
   }
 
   if(status == H266_ERR) {
-    GST_ERROR("encode Frame failed, error: %d", status); 
+    GST_ERROR("encode Frame failed, error: %d", status);
   }
   else if(status == H266_PAYLOAD_AVAILABLE) {
     poc++;
@@ -559,7 +577,7 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
 
     opframe->dts = h266_frame.dts + 0; //encoder->dts_offset;
 
-    if (opframe) {   
+    if (opframe) {
       int ret = gst_video_encoder_finish_frame (video_enc, opframe);
       if(ret != 0) {
         GST_ERROR("error in finish frame returns: %d", ret);
@@ -663,7 +681,7 @@ static gboolean gst_h266_enc_set_format (GstVideoEncoder * video_enc,
 
   if (encoder->input_state)
     gst_video_codec_state_unref (encoder->input_state);
-  
+
   encoder->input_state = gst_video_codec_state_ref (state);
 
   video_width = encoder->input_state->info.width;
