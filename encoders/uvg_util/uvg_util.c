@@ -286,10 +286,135 @@ UVG_LIBRARY_API int uvg_handle(H266Frame *frame)
     uvg_frame_info info_out;
     H266Status status = H266_SUCCESS;
 
+    uint8_t* local_output_payload = NULL;  // ✅ Variable LOCALE
+    uvg_data_chunk* local_chunks_out = NULL;  // ✅ Variable LOCALE
+
+
+    int stride_v =g_ctx.config->width / 2;
+    //int stride_u =g_ctx.config->width / 2;
+    //int stride_y =g_ctx.config->width;
+
+    if (!frame || !frame->input_planes[0].payload || !frame->input_planes[1].payload || !frame->input_planes[2].payload) {
+        UVG_ERROR("Invalid input frame or plane pointers");
+        return H266_ERR;
+    }
+
+    UVG_DEBUG("Input planes - Y: %p(size: %d), U: %p(size: %d), V: %p(size: %d)",
+        frame->input_planes[0].payload, frame->input_planes[0].payloadSize,
+        frame->input_planes[1].payload, frame->input_planes[1].payloadSize,
+        frame->input_planes[2].payload, frame->input_planes[2].payloadSize);
+
+
+
     //allocate memory for cur img here
     UVG_DEBUG("cHROMA UVG_CSP_420 %d \n", UVG_CSP_420);
 
+    int stride_y = g_ctx.config->width;
+    int stride_uv = g_ctx.config->width / 2;
+
+
+
     uvg_picture* cur_in_img = g_ctx.api->picture_alloc_csp(UVG_CSP_420, g_ctx.config->width, g_ctx.config->height);
+   if (!cur_in_img) {
+        UVG_ERROR("Failed to allocate UVG picture");
+        return H266_ERR;
+    }
+        
+   if (!cur_in_img->y || (uintptr_t)cur_in_img->y < 0x1000) {
+        UVG_WARNING("Y plane invalid, repairing...");
+        size_t y_size = stride_y * g_ctx.config->height;
+        cur_in_img->y = (uvg_pixel*)malloc(y_size);
+        if (!cur_in_img->y) {
+            UVG_ERROR("Failed to manually allocate Y plane");
+            g_ctx.api->picture_free(cur_in_img);
+            return H266_ERR;
+        }
+        
+    }
+   if (!cur_in_img->u || (uintptr_t)cur_in_img->u < 0x1000) {
+        UVG_WARNING("U plane invalid, repairing...");
+        size_t u_size = stride_uv * (g_ctx.config->height / 2);
+        cur_in_img->u = (uvg_pixel*)malloc(u_size);
+        if (!cur_in_img->u) {
+            UVG_ERROR("Failed to manually allocate U plane");
+            free(cur_in_img->y);  // Libérer Y si alloué manuellement
+            g_ctx.api->picture_free(cur_in_img);
+            return H266_ERR;
+        }
+        
+    }
+
+    if (!cur_in_img->v || (uintptr_t)cur_in_img->v < 0x1000) {
+        UVG_WARNING("V plane invalid, repairing...");
+        size_t v_size = stride_uv * (g_ctx.config->height / 2);
+        cur_in_img->v = (uvg_pixel*)malloc(v_size);
+        if (!cur_in_img->v) {
+            UVG_ERROR("Failed to manually allocate V plane");
+            free(cur_in_img->y);  // Libérer Y si alloué manuellement
+            free(cur_in_img->u);  // Libérer U si alloué manuellement
+            g_ctx.api->picture_free(cur_in_img);
+            return H266_ERR;
+        }
+        
+    }
+
+     if (!cur_in_img->y || !cur_in_img->u || !cur_in_img->v) {
+        UVG_ERROR("Failed to allocate all image planes");
+        g_ctx.api->picture_free(cur_in_img);
+        return H266_ERR;
+    }
+
+     UVG_DEBUG("Copying frame data...");
+    
+    size_t copy_size_y = stride_y * g_ctx.config->height;
+    size_t copy_size_u = stride_uv * (g_ctx.config->height / 2);
+    size_t copy_size_v = stride_uv * (g_ctx.config->height / 2);
+
+    UVG_DEBUG("Testing Y plane only...");
+   if (cur_in_img->y && frame->input_planes[0].payload) {
+    size_t test_size = (copy_size_y < 100) ? copy_size_y : 100; // Copier seulement 100 bytes
+    memcpy(cur_in_img->y, frame->input_planes[0].payload, test_size);
+    UVG_DEBUG("Y plane test PASSED - returning early");
+    //g_ctx.api->picture_free(cur_in_img);
+    //return H266_SUCCESS; // Retourner tôt pour test
+   }
+
+   UVG_DEBUG("Testing U plane...");
+  if (cur_in_img->u && frame->input_planes[1].payload) {
+    size_t test_size = (copy_size_u < 100) ? copy_size_u : 100;
+    memcpy(cur_in_img->u, frame->input_planes[1].payload, test_size);
+    UVG_DEBUG("U plane test PASSED - returning early");
+    //g_ctx.api->picture_free(cur_in_img);
+    //return H266_SUCCESS;
+}
+
+UVG_DEBUG("Testing V plane...");
+if (cur_in_img->v && frame->input_planes[2].payload) {
+    size_t test_size = (copy_size_u < 100) ? copy_size_u : 100;
+    memcpy(cur_in_img->v, frame->input_planes[2].payload, test_size);
+    UVG_DEBUG("U plane test PASSED - returning early");
+    //g_ctx.api->picture_free(cur_in_img);
+    //return H266_SUCCESS;
+}
+
+
+
+    if (copy_size_y > frame->input_planes[0].payloadSize) 
+        copy_size_y = frame->input_planes[0].payloadSize;
+    if (copy_size_u > frame->input_planes[1].payloadSize) 
+        copy_size_u = frame->input_planes[1].payloadSize;
+    if (copy_size_v > frame->input_planes[2].payloadSize) 
+        copy_size_v = frame->input_planes[2].payloadSize;
+
+    memcpy(cur_in_img->y, frame->input_planes[0].payload, copy_size_y);
+    memcpy(cur_in_img->u, frame->input_planes[1].payload, copy_size_u);
+    memcpy(cur_in_img->v, frame->input_planes[2].payload, copy_size_v);
+
+
+#if 0
+
+
+
 
     if (!cur_in_img || !cur_in_img->y || !cur_in_img->u || !cur_in_img->v) {
         UVG_ERROR("Failed to allocate input picture");
@@ -336,12 +461,13 @@ UVG_LIBRARY_API int uvg_handle(H266Frame *frame)
         memcpy(cur_in_img->u, frame->input_planes[1].payload, frame->input_planes[1].payloadSize);
     if(cur_in_img->v)
         memcpy(cur_in_img->v, frame->input_planes[2].payload, frame->input_planes[2].payloadSize);
+#endif
 
     cur_in_img->pts = g_ctx.pts_util++;
 
     if (!g_ctx.api->encoder_encode(g_ctx.enc,
                             cur_in_img,
-                            &g_ctx.chunks_out,
+                            &local_chunks_out,
                             &len_out,
                             &g_ctx.img_rec,
                             &g_ctx.img_src,
@@ -350,33 +476,44 @@ UVG_LIBRARY_API int uvg_handle(H266Frame *frame)
         g_ctx.api->picture_free(cur_in_img);
         return H266_ERR;
     }
-    if (g_ctx.chunks_out == NULL && cur_in_img == NULL) {
+    if (local_chunks_out == NULL && cur_in_img == NULL) {
         // We are done since there is no more input and output left.
         return H266_ENCODING_DONE;
     }
 
-    if (g_ctx.chunks_out != NULL) {
+    if (local_chunks_out != NULL) {
 
         UVG_DEBUG("UVG Payload Available");
 
-        if(output_payload) {
-            free(output_payload);
-            output_payload = NULL;
+        local_output_payload = (uint8_t*)malloc(len_out);
+        if (!local_output_payload) {
+            UVG_ERROR("Failed to allocate output payload");
+            g_ctx.api->picture_free(cur_in_img);
+            g_ctx.api->chunk_free(local_chunks_out);
+            return H266_ERR;
         }
 
-        output_payload = (uint8_t*)calloc(len_out, sizeof(uint8_t));
 
 
 
         uint64_t written = 0;
         // Write data into the output file.
-        for (uvg_data_chunk *chunk = g_ctx.chunks_out; chunk != NULL; chunk = chunk->next) {
+        for (uvg_data_chunk *chunk = local_chunks_out; chunk != NULL; chunk = chunk->next) {
+            if (!chunk->data || chunk->len == 0) {
+                UVG_WARNING("Invalid chunk skipped");
+                continue;
+            }
+            if (written + chunk->len > len_out) {
+                UVG_ERROR("Buffer overflow prevented");
+                break;
+            }
             assert(written + chunk->len <= len_out);
-            memcpy(output_payload + written, chunk->data, chunk->len);
+            //memcpy(output_payload + written, chunk->data, chunk->len);
+            memcpy(local_output_payload + written, chunk->data, chunk->len);
             written += chunk->len;
         }
 
-        frame->output_payload = output_payload;
+        frame->output_payload = local_output_payload;
         frame->outputPayloadSize = len_out;
         frame->outputPayloadAvailable = true;
 
@@ -386,11 +523,15 @@ UVG_LIBRARY_API int uvg_handle(H266Frame *frame)
             return -1;  // Or appropriate error code
         }
 
-        if (frame->outputPayloadSize < frame->input_planes[1].payloadSize) {
-            printf("UVG_ERROR: Output buffer too small! Have: %d, Need: %d\n",
-                frame->outputPayloadSize, frame->input_planes[1].payloadSize);
-            return -1;
+        
+        if (frame->outputPayloadSize == 0) {
+            printf("UVG_ERROR: outputPayloadSize is 0!\n");
+            return -1;  // Or appropriate error code
         }
+        else {
+            printf("UVG_DEBUG: output_payload is valid, size: %d\n", frame->outputPayloadSize);
+        }
+
 
         status = H266_PAYLOAD_AVAILABLE;
     }
@@ -398,9 +539,9 @@ UVG_LIBRARY_API int uvg_handle(H266Frame *frame)
     {
         UVG_DEBUG("Freeing pointer");
         g_ctx.api->picture_free(cur_in_img);
-        g_ctx.api->chunk_free(g_ctx.chunks_out);
-        g_ctx.api->picture_free(g_ctx.img_rec);
-        g_ctx.api->picture_free(g_ctx.img_src);
+        //g_ctx.api->chunk_free(g_ctx.chunks_out);
+        //g_ctx.api->picture_free(g_ctx.img_rec);
+        //g_ctx.api->picture_free(g_ctx.img_src);
 
     }
 
@@ -424,20 +565,25 @@ UVG_LIBRARY_API int uvg_flush(void)
 
 
 UVG_LIBRARY_API int uvg_close(void) {
-    if (g_ctx.api)
-    {
-        UVG_DEBUG("Freeing pointer");
-        g_ctx.api->chunk_free(g_ctx.chunks_out);
-        g_ctx.api->picture_free(g_ctx.img_rec);
-        g_ctx.api->picture_free(g_ctx.img_src);
+    if (g_ctx.api) {
+        if (g_ctx.chunks_out) {
+            g_ctx.api->chunk_free(g_ctx.chunks_out);
+            g_ctx.chunks_out = NULL;
+        }
+        if (g_ctx.img_rec) {
+            g_ctx.api->picture_free(g_ctx.img_rec);
+            g_ctx.img_rec = NULL;
+        }
+        if (g_ctx.img_src) {
+            g_ctx.api->picture_free(g_ctx.img_src);
+            g_ctx.img_src = NULL;
+        }
+        
+        if (g_ctx.enc) {
+            g_ctx.api->encoder_close(g_ctx.enc);
+            g_ctx.enc = NULL;
+        }
     }
-
-    if(output_payload) {
-        free(output_payload);
-        output_payload = NULL;
-    }
-
-    if (g_ctx.enc) g_ctx.api->encoder_close(g_ctx.enc);
 
     return 0;
 }
