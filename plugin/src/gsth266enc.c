@@ -436,6 +436,12 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
   const gsize u_offset = GST_VIDEO_INFO_PLANE_OFFSET(video_info, 1);
   const gsize v_offset = GST_VIDEO_INFO_PLANE_OFFSET(video_info, 2);
 
+  // Get plane pointers
+  uint8_t *y_src = info.data + y_offset;
+  uint8_t *u_src = info.data + u_offset;
+  uint8_t *v_src = info.data + v_offset;
+
+
 
   GST_INFO("Input buffer size: %d", info.size);
   
@@ -448,13 +454,38 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
 
   H266Frame h266_frame;
   memset(&h266_frame, 0, sizeof(H266Frame));
+#if 0
+  h266_frame.input_planes[0].payload = (uint8_t*)malloc(y_buf_bytes);
+  h266_frame.input_planes[1].payload = (uint8_t*)malloc(uv_buf_bytes);
+  h266_frame.input_planes[2].payload = (uint8_t*)malloc(uv_buf_bytes);
+#endif
 
 
   GST_INFO("Configuring H266Frame");
-
+#if 1
     h266_frame.input_planes[0].payload = info.data;
     h266_frame.input_planes[1].payload = info.data + iSizeComponent0;
     h266_frame.input_planes[2].payload = info.data + iSizeComponent0 + iSizeComponent1;
+#else
+
+
+    // Copy Y plane (handle stride if needed)
+    for (guint i = 0; i < height; i++) {
+      memcpy(h266_frame.input_planes[0].payload + i * width, y_src + i * y_stride, width);
+    }
+
+    // Copy U plane (chroma is subsampled)
+    for (guint i = 0; i < height / 2; i++) {
+      memcpy(h266_frame.input_planes[1].payload + i * (width / 2), u_src + i * u_stride, width / 2);
+    }
+
+    // Copy V plane (chroma is subsampled)
+    for (guint i = 0; i < height / 2; i++) {
+      memcpy(h266_frame.input_planes[2].payload + i * (width / 2), v_src + i * v_stride, width / 2);
+    }
+#endif
+
+
 
     h266_frame.input_planes[0].payloadSize = iSizeComponent0;
     h266_frame.input_planes[1].payloadSize = iSizeComponent1;
