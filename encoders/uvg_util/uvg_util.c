@@ -264,6 +264,7 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
     g_ctx.config->input_bitdepth = h266_config->depth[0];
     g_ctx.config->file_format = UVG_FORMAT_YUV;
 # if 1
+    g_ctx.config->framerate_num = 30;
     UVG_INFO("WIDTH %d",g_ctx.config->width);
     UVG_INFO("HEIGHT %d",g_ctx.config->height);
     UVG_INFO("QP %d",g_ctx.config->qp);
@@ -510,6 +511,8 @@ if (cur_in_img->v && frame->input_planes[2].payload) {
         g_ctx.api->picture_free(cur_in_img);
         return H266_ERR;
     }
+    UVG_DEBUG("Encoding completed. Output length: %u", len_out);
+
     if (local_chunks_out == NULL && cur_in_img == NULL) {
         // We are done since there is no more input and output left.
         return H266_ENCODING_DONE;

@@ -57,7 +57,7 @@ enum
   PROP_BITRATE,
   PROP_QP
 };
-
+#define DUMP_YUV_PLANES false  
 #define PROP_BITRATE_DEFAULT            (10 * 1000000)
 #define PROP_QP_DEFAULT                 32
 
@@ -339,6 +339,7 @@ gst_h266_enc_close_encoder (Gsth266enc * encoder)
     if(status != H266_SUCCESS) {
     GST_ERROR("Error closing encoder: %d", status);
     }
+#if DUMP_YUV_PLANES
     if (encoder->fp_Y) {
     fclose(encoder->fp_Y);
     encoder->fp_Y = NULL;
@@ -351,7 +352,8 @@ gst_h266_enc_close_encoder (Gsth266enc * encoder)
     fclose(encoder->fp_V);
     encoder->fp_V = NULL;
   }
-    
+#endif
+
   } 
 
   
@@ -414,7 +416,7 @@ static GstFlowReturn
 gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
     GstVideoCodecFrame * frame)
 {
-  GST_INFO("gst_h266_enc_handle_frame called");
+  GST_INFO("##gst_h266_enc_handle_frame called");
 
   static int poc = 0;
   Gsth266enc *encoder = GST_H266ENC(video_enc);
@@ -508,7 +510,7 @@ g_mutex_lock(&frame_mutex);
       fwrite(info.data + iSizeComponent0 + iSizeComponent1, uv_buf_bytes, 1, encoder->fp_V);
     }
 #endif
-#if 0
+#if DUMP_YUV_PLANES
     if (encoder->fp_Y) {
       fwrite(h266_frame.input_planes[0].payload,y_buf_bytes, 1, encoder->fp_Y);
     }
@@ -602,6 +604,8 @@ g_mutex_lock(&frame_mutex);
   g_mutex_unlock(&frame_mutex);
 
   GST_INFO("Finish Encode H266Frame");
+
+  GST_INFO("##>>gst_h266_enc_handle_frame %d %d", status, poc);
 
   if (frame)
   {
@@ -756,6 +760,7 @@ static gboolean gst_h266_enc_set_format (GstVideoEncoder * video_enc,
     gst_h266_enc_close_encoder (encoder);
     return FALSE;
   }
+#if DUMP_YUV_PLANES
 
   encoder->fp_Y = fopen("dumpbuf_Y.yuv", "ab");
   if (encoder->fp_Y == NULL) {
@@ -778,6 +783,7 @@ static gboolean gst_h266_enc_set_format (GstVideoEncoder * video_enc,
   } else {
     GST_INFO_OBJECT(encoder, "V dump file opened successfully");
   }
+#endif
 
   return TRUE;
 }
