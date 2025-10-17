@@ -246,8 +246,6 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
         return -1;
     }
 
-    print_uvg_config_arrays(g_ctx.config);
-    print_uvg_config(g_ctx.config);
 
      if (g_ctx.config->vps_period < 0) {
     // Disabling parameter sets is only possible when using uvg266 as
@@ -289,6 +287,10 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
     UVG_INFO("Initializing UVG266: %dx%d, bitrate=%d, qp=%d",
          h266_config->width, h266_config->height,
          h266_config->bitrate, h266_config->qp);
+
+    print_uvg_config_arrays(g_ctx.config);
+    print_uvg_config(g_ctx.config);
+
 
 
     //open encoder here
