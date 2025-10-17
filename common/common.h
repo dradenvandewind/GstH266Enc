@@ -36,6 +36,7 @@
 #include <stdbool.h>
 
 
+
 enum H266_VIDEO_FORMAT {
     H266_DEFAULT = 0,
     H266_VIDEO_FORMAT_I420 = 1,
@@ -70,6 +71,10 @@ struct H266_CONFIG {
     int logLevel;
     H266VideoFormat format;
     int depth[3];
+    
+   /*  sem_t *available_input_slots;
+    sem_t *filled_input_slots; 
+ */
 };
 
 struct H266_PLANE {
@@ -90,5 +95,9 @@ struct H266_FRAME {
     unsigned long poc;
     bool silence;
     bool outputPayloadAvailable;
+    
+  /*   sem_t *available_input_slots;
+    sem_t *filled_input_slots;
+ */
 };
 #endif // HEADER_H

@@ -35,7 +35,7 @@
 #include <stdbool.h>
 #include <gst/video/video.h>
 #include <gst/video/gstvideoencoder.h>
-
+#include <stdio.h>
 
 
 G_BEGIN_DECLS
@@ -66,6 +66,8 @@ struct _Gsth266enc
   guint bitrate;
   gint qp;
   gint logLevel;
+  FILE *fp, *fp_Y, *fp_U, *fp_V;
+
 
   /* input description */
   GstVideoCodecState *input_state;
@@ -76,6 +78,8 @@ struct _Gsth266enc
 struct _Gsth266encClass
 {
   GstVideoEncoderClass parent_class;
+    GMutex frame_mutex;
+
 };
 
 GType gst_h266enc_get_type (void);

@@ -48,6 +48,8 @@
 GST_DEBUG_CATEGORY_STATIC (gst_h266enc_debug);
 #define GST_CAT_DEFAULT gst_h266enc_debug
 
+GMutex frame_mutex;
+
 enum
 {
   PROP_0,
@@ -261,6 +263,12 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
   h266Config.depth[0] = encoder->input_state->info.finfo->depth[0];
   h266Config.depth[1] = encoder->input_state->info.finfo->depth[1];
   h266Config.depth[2] = encoder->input_state->info.finfo->depth[2];
+  //int pshared = 0; 
+  //sem_init(h266Config.available_input_slots, pshared, 0);
+  //sem_init(h266Config.filled_input_slots, pshared, 0);
+
+  g_mutex_init(&frame_mutex);
+
   if(encoder->input_state->info.finfo->format == GST_VIDEO_FORMAT_I420_10LE)
   {
     h266Config.format = H266_VIDEO_FORMAT_I420_10LE;
@@ -308,6 +316,8 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
     encoder->bEncodeInitDone = true;
   }
 
+  
+
 
   return TRUE;
 }
@@ -329,6 +339,18 @@ gst_h266_enc_close_encoder (Gsth266enc * encoder)
     if(status != H266_SUCCESS) {
     GST_ERROR("Error closing encoder: %d", status);
     }
+    if (encoder->fp_Y) {
+    fclose(encoder->fp_Y);
+    encoder->fp_Y = NULL;
+  }
+  if (encoder->fp_U) {
+    fclose(encoder->fp_U);
+    encoder->fp_U = NULL;
+  }
+  if (encoder->fp_V) {
+    fclose(encoder->fp_V);
+    encoder->fp_V = NULL;
+  }
     
   } 
 
@@ -366,6 +388,7 @@ static gboolean gst_h266_enc_set_src_caps(Gsth266enc * encoder, GstCaps * caps)
 static GstFlowReturn
 gst_h266_enc_finish (GstVideoEncoder * encoder)
 {
+    g_mutex_clear(&frame_mutex);
   GST_INFO("gst_h266_enc_finish called");
     //flush the encoder here
   Gsth266enc *enc = GST_H266ENC(encoder);
@@ -437,10 +460,10 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
   const gsize v_offset = GST_VIDEO_INFO_PLANE_OFFSET(video_info, 2);
 
   // Get plane pointers
-  uint8_t *y_src = info.data + y_offset;
+  /* uint8_t *y_src = info.data + y_offset;
   uint8_t *u_src = info.data + u_offset;
   uint8_t *v_src = info.data + v_offset;
-
+ */
 
 
   GST_INFO("Input buffer size: %d", info.size);
@@ -454,19 +477,55 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
 
   H266Frame h266_frame;
   memset(&h266_frame, 0, sizeof(H266Frame));
-#if 0
+#if 1
   h266_frame.input_planes[0].payload = (uint8_t*)malloc(y_buf_bytes);
   h266_frame.input_planes[1].payload = (uint8_t*)malloc(uv_buf_bytes);
   h266_frame.input_planes[2].payload = (uint8_t*)malloc(uv_buf_bytes);
 #endif
-
+g_mutex_lock(&frame_mutex);
 
   GST_INFO("Configuring H266Frame");
 #if 1
-    h266_frame.input_planes[0].payload = info.data;
-    h266_frame.input_planes[1].payload = info.data + iSizeComponent0;
-    h266_frame.input_planes[2].payload = info.data + iSizeComponent0 + iSizeComponent1;
+    //h266_frame.input_planes[0].payload = info.data;
+    //h266_frame.input_planes[1].payload = info.data + iSizeComponent0;
+    //h266_frame.input_planes[2].payload = info.data + iSizeComponent0 + iSizeComponent1;
+
+    memcpy(h266_frame.input_planes[0].payload, info.data, y_buf_bytes);
+    memcpy(h266_frame.input_planes[1].payload, info.data + iSizeComponent0, uv_buf_bytes);
+    memcpy(h266_frame.input_planes[2].payload, info.data + iSizeComponent0 + iSizeComponent1, uv_buf_bytes);
+
+
+#if 0    
+    if (encoder->fp_Y) {
+      fwrite(info.data,y_buf_bytes, 1, encoder->fp_Y);
+    }
+
+    if (encoder->fp_U) {
+      fwrite(info.data + iSizeComponent0,uv_buf_bytes, 1, encoder->fp_U);
+    }
+
+    if (encoder->fp_V) {
+      fwrite(info.data + iSizeComponent0 + iSizeComponent1, uv_buf_bytes, 1, encoder->fp_V);
+    }
+#endif
+#if 0
+    if (encoder->fp_Y) {
+      fwrite(h266_frame.input_planes[0].payload,y_buf_bytes, 1, encoder->fp_Y);
+    }
+
+    if (encoder->fp_U) {
+      fwrite(h266_frame.input_planes[1].payload,uv_buf_bytes, 1, encoder->fp_U);
+    }
+
+    if (encoder->fp_V) {
+      fwrite(h266_frame.input_planes[2].payload, uv_buf_bytes, 1, encoder->fp_V);
+    }
+#endif 
+
+
 #else
+
+
 
 
     // Copy Y plane (handle stride if needed)
@@ -539,6 +598,8 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
 
   GST_INFO("Encode H266Frame");
   H266Status status = encodeFrame(&h266_frame);
+
+  g_mutex_unlock(&frame_mutex);
 
   GST_INFO("Finish Encode H266Frame");
 
@@ -694,6 +755,28 @@ static gboolean gst_h266_enc_set_format (GstVideoEncoder * video_enc,
   if (!gst_h266_enc_set_src_caps (encoder, state->caps)) {
     gst_h266_enc_close_encoder (encoder);
     return FALSE;
+  }
+
+  encoder->fp_Y = fopen("dumpbuf_Y.yuv", "ab");
+  if (encoder->fp_Y == NULL) {
+    GST_ERROR_OBJECT(encoder, "Failed to open Y dump file");
+    return FALSE;
+  } else {
+    GST_INFO_OBJECT(encoder, "Y dump file opened successfully");
+  }
+  encoder->fp_U = fopen("dumpbuf_U.yuv", "ab");
+  if (encoder->fp_U == NULL) {
+    GST_ERROR_OBJECT(encoder, "Failed to open U dump file");
+    return FALSE;
+  } else {
+    GST_INFO_OBJECT(encoder, "U dump file opened successfully");
+  }
+  encoder->fp_V = fopen("dumpbuf_V.yuv", "ab");
+  if (encoder->fp_V == NULL) {
+    GST_ERROR_OBJECT(encoder, "Failed to open V dump file");
+    return FALSE;
+  } else {
+    GST_INFO_OBJECT(encoder, "V dump file opened successfully");
   }
 
   return TRUE;

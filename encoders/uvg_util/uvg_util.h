@@ -13,6 +13,8 @@
 #define g_assert(expr) assert(expr)
 #define FALSE 0
 #define TRUE 1
+#define FREE_POINTER(pointer) { free((void*)pointer); pointer = NULL; }
+FILE  *uvg_Y, *uvg_U, *uvg_V;
 
 #ifdef __cplusplus
 extern "C" {
