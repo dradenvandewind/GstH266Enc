@@ -1,6 +1,5 @@
 
-# Configuration des chemins
-vvenc_lib = 'vvenc'# Nom de la bibliothèque sans préfixe/suffixe
+vvenc_lib = 'vvenc'
 vvc_lib_dir = ENCODER_LIB_PATH
 vvc_inc_dir = ENCODER_INCLUDE_PATH
 vvenc_inc_dir = ENCODER_INCLUDE_PATH
@@ -11,13 +10,10 @@ apputils_lib_dir = ENCODER_LIB_PATH
 vvenc_util_inc = '.'
 h266_common_inc = '../../../common'
 
-# Pour Linux, on utilise dlopen donc pas besoin de lier statiquement
-# On déclare simplement les dépendances pour les en-têtes
 vvenc_dependency = declare_dependency(
   include_directories : [vvenc_util_inc, h266_common_inc, vvenc_inc_dir, configuration_inc]
 )
 
-# Le plugin h266enc
 vvenc_util_sources = [
   './vvenc_util.c',
   '../../common/log.c',
@@ -26,7 +22,6 @@ if not is_variable('plugin_c_args')
   plugin_c_args = []
 endif
 
-# Ajouter dl pour dlopen
 dl_dep = meson.get_compiler('c').find_library('dl', required : true)
 
 vvenc_lib_dep = meson.get_compiler('c').find_library(vvenc_lib, 

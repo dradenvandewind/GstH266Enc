@@ -106,10 +106,9 @@ H266Status encodeFrame(H266Frame *frame) {
 }
 #else
 H266Status encodeFrame(H266Frame *frame) {
-    printf("[DEBUG] encodeFrame called\n");
-    printf("[DEBUG] Frame pointer: %p\n", frame);
-    printf("[DEBUG] Encoder handle pointer: %p\n", encoderUtil.handle);
-
+    //printf("[DEBUG] encodeFrame called\n");
+    //printf("[DEBUG] Frame pointer: %p\n", frame);
+    //printf("[DEBUG] Encoder handle pointer: %p\n", encoderUtil.handle);
     
     if (!frame) {
         printf("[ERROR] Frame is null!\n");

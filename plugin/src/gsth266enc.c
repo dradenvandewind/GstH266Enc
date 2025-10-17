@@ -263,9 +263,6 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
   h266Config.depth[0] = encoder->input_state->info.finfo->depth[0];
   h266Config.depth[1] = encoder->input_state->info.finfo->depth[1];
   h266Config.depth[2] = encoder->input_state->info.finfo->depth[2];
-  //int pshared = 0; 
-  //sem_init(h266Config.available_input_slots, pshared, 0);
-  //sem_init(h266Config.filled_input_slots, pshared, 0);
 
   g_mutex_init(&frame_mutex);
 
@@ -390,7 +387,6 @@ static gboolean gst_h266_enc_set_src_caps(Gsth266enc * encoder, GstCaps * caps)
 static GstFlowReturn
 gst_h266_enc_finish (GstVideoEncoder * encoder)
 {
-    g_mutex_clear(&frame_mutex);
   GST_INFO("gst_h266_enc_finish called");
     //flush the encoder here
   Gsth266enc *enc = GST_H266ENC(encoder);
@@ -428,157 +424,58 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
     GST_ERROR("Failed to map input buffer");
     return GST_FLOW_ERROR;
   }
+  
   const guint width = GST_VIDEO_INFO_WIDTH(video_info);
   const guint height = GST_VIDEO_INFO_HEIGHT(video_info);
   const guint in_bitdepth = video_info->finfo->depth[0];
 
   GST_INFO("Input buffer mapped, width: %d, height: %d", width, height);
 
-
-
-  unsigned bytes_per_sample =  in_bitdepth > 8 ? 2 : 1;
-  unsigned bit_shift =  in_bitdepth > 8 ? 1 : 2;
-
-
+  unsigned bytes_per_sample = in_bitdepth > 8 ? 2 : 1;
   unsigned y_buf_bytes = width * height * bytes_per_sample;
-  unsigned uv_buf_bytes = y_buf_bytes >> 2; // For 4:2:0
-
-
+  unsigned uv_buf_bytes = y_buf_bytes >> 2;
 
   int iSizeComponent0 = y_buf_bytes;
   int iSizeComponent1 = uv_buf_bytes;
   int iSizeComponent2 = uv_buf_bytes;
-  GST_INFO("video_width: %d, video_height: %d", video_width, video_height);
 
+  GST_INFO("Input buffer size: %zu", info.size);
+  GST_INFO("SizeComponent0: %d, SizeComponent1: %d, SizeComponent2: %d", 
+           iSizeComponent0, iSizeComponent1, iSizeComponent2);
 
-// Get strides
-  const gsize y_stride = GST_VIDEO_INFO_PLANE_STRIDE(video_info, 0);
-  const gsize u_stride = GST_VIDEO_INFO_PLANE_STRIDE(video_info, 1);
-  const gsize v_stride = GST_VIDEO_INFO_PLANE_STRIDE(video_info, 2);
-
-  // Get plane offsets (more reliable than assuming layout)
-  const gsize y_offset = GST_VIDEO_INFO_PLANE_OFFSET(video_info, 0);
-  const gsize u_offset = GST_VIDEO_INFO_PLANE_OFFSET(video_info, 1);
-  const gsize v_offset = GST_VIDEO_INFO_PLANE_OFFSET(video_info, 2);
-
-  // Get plane pointers
-  /* uint8_t *y_src = info.data + y_offset;
-  uint8_t *u_src = info.data + u_offset;
-  uint8_t *v_src = info.data + v_offset;
- */
-
-
-  GST_INFO("Input buffer size: %d", info.size);
-  
-
-  GST_INFO("SizeComponent0: %d, SizeComponent1: %d, SizeComponent2: %d", iSizeComponent0, iSizeComponent1, iSizeComponent2);
-  GST_INFO("Y stride: %d, U stride: %d, V stride: %d", y_stride, u_stride, v_stride);
-  GST_INFO("Y offset: %d, U offset: %d, V offset: %d", y_offset, u_offset, v_offset);
-
-
-
+  // Prepare H266Frame structure
   H266Frame h266_frame;
   memset(&h266_frame, 0, sizeof(H266Frame));
-#if 1
+
+  // allocate input buffer
   h266_frame.input_planes[0].payload = (uint8_t*)malloc(y_buf_bytes);
   h266_frame.input_planes[1].payload = (uint8_t*)malloc(uv_buf_bytes);
   h266_frame.input_planes[2].payload = (uint8_t*)malloc(uv_buf_bytes);
-#endif
-g_mutex_lock(&frame_mutex);
+
+  if (!h266_frame.input_planes[0].payload || 
+      !h266_frame.input_planes[1].payload || 
+      !h266_frame.input_planes[2].payload) {
+    GST_ERROR("Failed to allocate input plane buffers");
+    
+    // free secure
+    if (h266_frame.input_planes[0].payload) free(h266_frame.input_planes[0].payload);
+    if (h266_frame.input_planes[1].payload) free(h266_frame.input_planes[1].payload);
+    if (h266_frame.input_planes[2].payload) free(h266_frame.input_planes[2].payload);
+    
+    gst_buffer_unmap(gInputBuffer, &info);
+    return GST_FLOW_ERROR;
+  }
 
   GST_INFO("Configuring H266Frame");
-#if 1
-    //h266_frame.input_planes[0].payload = info.data;
-    //h266_frame.input_planes[1].payload = info.data + iSizeComponent0;
-    //h266_frame.input_planes[2].payload = info.data + iSizeComponent0 + iSizeComponent1;
 
-    memcpy(h266_frame.input_planes[0].payload, info.data, y_buf_bytes);
-    memcpy(h266_frame.input_planes[1].payload, info.data + iSizeComponent0, uv_buf_bytes);
-    memcpy(h266_frame.input_planes[2].payload, info.data + iSizeComponent0 + iSizeComponent1, uv_buf_bytes);
+  // copy data
+  memcpy(h266_frame.input_planes[0].payload, info.data, y_buf_bytes);
+  memcpy(h266_frame.input_planes[1].payload, info.data + iSizeComponent0, uv_buf_bytes);
+  memcpy(h266_frame.input_planes[2].payload, info.data + iSizeComponent0 + iSizeComponent1, uv_buf_bytes);
 
-
-#if 0    
-    if (encoder->fp_Y) {
-      fwrite(info.data,y_buf_bytes, 1, encoder->fp_Y);
-    }
-
-    if (encoder->fp_U) {
-      fwrite(info.data + iSizeComponent0,uv_buf_bytes, 1, encoder->fp_U);
-    }
-
-    if (encoder->fp_V) {
-      fwrite(info.data + iSizeComponent0 + iSizeComponent1, uv_buf_bytes, 1, encoder->fp_V);
-    }
-#endif
-#if DUMP_YUV_PLANES
-    if (encoder->fp_Y) {
-      fwrite(h266_frame.input_planes[0].payload,y_buf_bytes, 1, encoder->fp_Y);
-    }
-
-    if (encoder->fp_U) {
-      fwrite(h266_frame.input_planes[1].payload,uv_buf_bytes, 1, encoder->fp_U);
-    }
-
-    if (encoder->fp_V) {
-      fwrite(h266_frame.input_planes[2].payload, uv_buf_bytes, 1, encoder->fp_V);
-    }
-#endif 
-
-
-#else
-
-
-
-
-    // Copy Y plane (handle stride if needed)
-    for (guint i = 0; i < height; i++) {
-      memcpy(h266_frame.input_planes[0].payload + i * width, y_src + i * y_stride, width);
-    }
-
-    // Copy U plane (chroma is subsampled)
-    for (guint i = 0; i < height / 2; i++) {
-      memcpy(h266_frame.input_planes[1].payload + i * (width / 2), u_src + i * u_stride, width / 2);
-    }
-
-    // Copy V plane (chroma is subsampled)
-    for (guint i = 0; i < height / 2; i++) {
-      memcpy(h266_frame.input_planes[2].payload + i * (width / 2), v_src + i * v_stride, width / 2);
-    }
-#endif
-
-
-
-    h266_frame.input_planes[0].payloadSize = iSizeComponent0;
-    h266_frame.input_planes[1].payloadSize = iSizeComponent1;
-    h266_frame.input_planes[2].payloadSize = iSizeComponent2;
-
-
-#if 0
-  if (encoderType == VVENC_ENCODER) {
-    //VVENC supports only 10 bit depth
-    h266_frame.input_planes[0].payload = info.data;
-    h266_frame.input_planes[1].payload = info.data + iSizeComponent0;
-    h266_frame.input_planes[2].payload = info.data + iSizeComponent0 + iSizeComponent1;
-
-    h266_frame.input_planes[0].payloadSize = iSizeComponent0;
-    h266_frame.input_planes[1].payloadSize = iSizeComponent1;
-    h266_frame.input_planes[2].payloadSize = iSizeComponent2;
-  }
-  else
-  {
-    //UVG supports 8 bit 
-    h266_frame.input_planes[0].payload = info.data + y_offset;
-    h266_frame.input_planes[1].payload = info.data + u_offset;
-    h266_frame.input_planes[2].payload = info.data + v_offset;
-
-    h266_frame.input_planes[0].payloadSize = width * height;
-    h266_frame.input_planes[1].payloadSize = 16384;//width/2 * height>>1; 
-    h266_frame.input_planes[2].payloadSize = 16384;//width>>1 * height>>1;
-
-  }
-#endif
-
-
+  h266_frame.input_planes[0].payloadSize = iSizeComponent0;
+  h266_frame.input_planes[1].payloadSize = iSizeComponent1;
+  h266_frame.input_planes[2].payloadSize = iSizeComponent2;
 
   h266_frame.input_planes[0].width = width;
   h266_frame.input_planes[0].height = height;
@@ -598,60 +495,79 @@ g_mutex_lock(&frame_mutex);
 
   GST_INFO("End of configuring H266Frame");
 
+  
   GST_INFO("Encode H266Frame");
   H266Status status = encodeFrame(&h266_frame);
+  GST_INFO("Finish Encode H266Frame with status: %d", status);
 
-  g_mutex_unlock(&frame_mutex);
+  // free input buffer after encoding
+  free(h266_frame.input_planes[0].payload);
+  free(h266_frame.input_planes[1].payload);
+  free(h266_frame.input_planes[2].payload);
+  h266_frame.input_planes[0].payload = NULL;
+  h266_frame.input_planes[1].payload = NULL;
+  h266_frame.input_planes[2].payload = NULL;
 
-  GST_INFO("Finish Encode H266Frame");
+  // Unmap buffer
+  gst_buffer_unmap(gInputBuffer, &info);
 
-  GST_INFO("##>>gst_h266_enc_handle_frame %d %d", status, poc);
+  GST_INFO("##>>gst_h266_enc_handle_frame status=%d poc=%d", status, poc);
 
-  if (frame)
-  {
+  // frre input frame
+  if (frame) {
     gst_video_codec_frame_unref(frame);
   }
 
+  if (status == H266_CRITICAL_ERROR) {
+        GST_ELEMENT_ERROR (encoder, STREAM, FAILED,
+            ("Invalid video format: U/V planes missing for 420 format"),
+            ("Encoder requires complete I420 format with valid U and V planes"));
+        
+        gst_video_codec_frame_unref (frame);
+        return GST_FLOW_ERROR;
+  }
+
   if(status == H266_ERR) {
-    GST_ERROR("encode Frame failed, error: %d", status); 
+    GST_ERROR("encodeFrame failed, error: %d", status);
+    return GST_FLOW_ERROR;
   }
   else if(status == H266_PAYLOAD_AVAILABLE) {
     poc++;
-    GST_INFO("Payload available, poc: %d", poc);
+    GST_INFO("Payload available, poc: %d, size: %d", poc, h266_frame.outputPayloadSize);
+    
     GstVideoCodecFrame *opframe = NULL;
-    opframe = gst_video_encoder_get_frame (GST_VIDEO_ENCODER (encoder),
-     GPOINTER_TO_INT (h266_frame.poc));
+    opframe = gst_video_encoder_get_frame(GST_VIDEO_ENCODER(encoder),
+                                           GPOINTER_TO_INT(h266_frame.poc));
 
     if(opframe == NULL) {
       opframe = (GstVideoCodecFrame *)calloc(1, sizeof(GstVideoCodecFrame));
     }
 
-    g_assert (opframe);
+    g_assert(opframe);
 
-    int i_size = 0;
-    int offset = 0;
-    GstBuffer *out_buf = NULL;
-    out_buf = gst_buffer_new_allocate (NULL, h266_frame.outputPayloadSize, NULL);
-    gst_buffer_fill (out_buf, offset, h266_frame.output_payload, h266_frame.outputPayloadSize);
+    GstBuffer *out_buf = gst_buffer_new_wrapped(h266_frame.output_payload, 
+                                                 h266_frame.outputPayloadSize);
+    
+    
     opframe->output_buffer = out_buf;
 
     if (h266_frame.sliceType == H266_I_S) {
-     GST_VIDEO_CODEC_FRAME_SET_SYNC_POINT (opframe);
+      GST_VIDEO_CODEC_FRAME_SET_SYNC_POINT(opframe);
     }
 
-    opframe->dts = h266_frame.dts + 0; //encoder->dts_offset;
+    opframe->dts = h266_frame.dts + 0;
 
     if (opframe) {   
-      int ret = gst_video_encoder_finish_frame (video_enc, opframe);
-      if(ret != 0) {
-        GST_ERROR("error in finish frame returns: %d", ret);
+      int ret = gst_video_encoder_finish_frame(video_enc, opframe);
+      if(ret != GST_FLOW_OK) {
+        GST_ERROR("error in finish frame, returns: %d", ret);
+        return ret;
       }
     }
   }
 
   return GST_FLOW_OK;
 }
-
 static void
 gst_h266enc_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
