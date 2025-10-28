@@ -54,7 +54,42 @@ typedef struct UVGenCContext {
 
 static UVGenCContext g_ctx = {0};
 
+
 void print_uvg_config(const uvg_config* config);
+static int atobool(const char *str)
+{
+  if (!strcmp(str, "1")    ||
+      !strcmp(str, "true") ||
+      !strcmp(str, "yes"))
+    return 1;
+  if (!strcmp(str, "0")     ||
+      !strcmp(str, "false") ||
+      !strcmp(str, "no"))
+    return 0;
+  return 0;
+}
+
+static bool safe_string_to_bool(const char *str) {
+    if (!str) return false;
+    if (str == (const char*)1) return true;  // Handle the integer 1 case
+    if (str == (const char*)0) return false; // Handle the integer 0 case
+    
+    // Check if it's actually a valid string pointer
+    if ((uintptr_t)str < 0x1000) {
+        return (uintptr_t)str != 0;
+    }
+    
+    return atobool(str);
+}
+
+
+// Function to display the uvg_config structure
+void print_uvg_config(const uvg_config *config) {
+    if (config == NULL) {
+        printf("UVG Configuration: NULL\n");
+        return;
+    }
+
 
 UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
 {
@@ -102,6 +137,27 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
     g_ctx.config->target_bitrate = h266_config->bitrate;
     g_ctx.config->input_bitdepth = h266_config->depth[0];
     g_ctx.config->file_format = UVG_FORMAT_YUV;
+
+    
+    g_ctx.config->aud_enable = true;
+    //safe_string_to_bool(h266_config->aud_enable);
+
+    g_ctx.config->intra_period = h266_config->intra_refresh;
+
+# if 1
+    g_ctx.config->framerate_num = 30;
+    UVG_INFO("WIDTH %d",g_ctx.config->width);
+    UVG_INFO("HEIGHT %d",g_ctx.config->height);
+    UVG_INFO("QP %d",g_ctx.config->qp);
+    UVG_INFO("FRAMERATE %d",g_ctx.config->framerate_num);
+    UVG_INFO("BITRATE %d",g_ctx.config->target_bitrate);
+    UVG_INFO("INPUT BITDEPTH %d",g_ctx.config->input_bitdepth);
+    UVG_INFO("FILE FORMAT %d",g_ctx.config->file_format);
+
+#endif
+
+    //not sure what this is
+
     g_ctx.config->rc_algorithm = UVG_OBA;
 
     if(h266_config->format == H266_VIDEO_FORMAT_I420 || 

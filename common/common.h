@@ -73,9 +73,10 @@ struct H266_CONFIG {
     H266VideoFormat format;
     int depth[3];
     
-   /*  sem_t *available_input_slots;
-    sem_t *filled_input_slots; 
- */
+   /* UVG config to inject additionnal props*/
+    int aud_enable;
+    int intra_refresh;
+
 };
 
 struct H266_PLANE {
