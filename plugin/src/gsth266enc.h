@@ -65,6 +65,9 @@ struct _Gsth266enc
 
   guint bitrate;
   gint qp;
+  gboolean uvg_aud;
+  gint intra_refresh;
+  
   gint logLevel;
   FILE *fp, *fp_Y, *fp_U, *fp_V;
 

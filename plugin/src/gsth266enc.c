@@ -55,11 +55,17 @@ enum
   PROP_0,
   PROP_SILENT,
   PROP_BITRATE,
-  PROP_QP
+  PROP_QP,
+  PROP_AUD,
+  PROP_INTRA_REFRESH 
 };
 #define DUMP_YUV_PLANES false  
 #define PROP_BITRATE_DEFAULT            (10 * 1000000)
 #define PROP_QP_DEFAULT                 32
+
+#define PROP_INTRA_REFRESH_DEFAULT    64
+#define ARG_AU_NALU_DEFAULT          TRUE
+
 
 static int video_width = 0;
 static int video_height = 0;
@@ -194,6 +200,20 @@ gst_h266enc_class_init (Gsth266encClass * klass)
       g_param_spec_int ("qp", "Quantization parameter",
           "QP for P slices in (implied) CQP mode (-1 = disabled)", -1,
           51, PROP_QP_DEFAULT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  
+
+  g_object_class_install_property (gobject_class, PROP_AUD,
+      g_param_spec_boolean ("aud", "AUD",
+          "Use AU (Access Unit) delimiter", ARG_AU_NALU_DEFAULT,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  
+  g_object_class_install_property (gobject_class, PROP_INTRA_REFRESH,
+      g_param_spec_uint ("key-int-max", "Key-frame maximal interval",
+          "Maximum interval between keyframes (0=only first, 1=all, N=every Nth)",
+          0, G_MAXINT, PROP_INTRA_REFRESH_DEFAULT,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
 
   supported_sinkcaps = gst_caps_new_simple ("video/x-raw",
     "framerate", GST_TYPE_FRACTION_RANGE, 0, 1, G_MAXINT, 1,
@@ -224,6 +244,9 @@ gst_h266enc_init (Gsth266enc * encoder)
 {
   encoder->qp = PROP_QP_DEFAULT;
   encoder->bitrate = PROP_BITRATE_DEFAULT;
+  encoder->uvg_aud = ARG_AU_NALU_DEFAULT;
+  encoder->intra_refresh = PROP_INTRA_REFRESH_DEFAULT;
+
 }
 
 static gboolean
@@ -260,6 +283,26 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
   h266Config.height = encoder->input_state->info.height;
   h266Config.bitrate = encoder->bitrate;
   h266Config.qp = encoder->qp;
+
+  if( strcmp(ENCODER_TYPE, "VVENC_ENCODER") == 0) {
+
+  }
+  else if (strcmp(ENCODER_TYPE, "UVG_ENCODER") == 0) {
+    h266Config.aud_enable = encoder->uvg_aud;
+
+    h266Config.intra_refresh = encoder->intra_refresh;
+  }
+  else {
+    GST_ERROR("Unsupported encoder type %s", ENCODER_TYPE);
+    return FALSE;
+  }
+
+  
+
+  
+
+
+  
   h266Config.depth[0] = encoder->input_state->info.finfo->depth[0];
   h266Config.depth[1] = encoder->input_state->info.finfo->depth[1];
   h266Config.depth[2] = encoder->input_state->info.finfo->depth[2];
@@ -586,6 +629,12 @@ gst_h266enc_set_property (GObject * object, guint prop_id,
     case PROP_QP:
       encoder->qp = g_value_get_int (value);
       break;
+    case PROP_AUD:
+      encoder->uvg_aud =g_value_get_boolean (value);
+      break;
+    case PROP_INTRA_REFRESH:
+      encoder->intra_refresh = g_value_get_uint (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -610,6 +659,12 @@ gst_h266enc_get_property (GObject * object, guint prop_id,
     case PROP_QP:
       g_value_set_int (value, encoder->qp);
       break;
+    case PROP_AUD:
+      g_value_set_boolean (value, encoder->uvg_aud);
+      break;
+    case PROP_INTRA_REFRESH:
+      g_value_set_uint (value, encoder->intra_refresh);
+      break;  
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;

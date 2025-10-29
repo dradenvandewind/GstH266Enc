@@ -56,6 +56,15 @@ static UVGenCContext g_ctx = {0};
 
 void print_uvg_config(const uvg_config* config);
 
+
+// Function to display the uvg_config structure
+void print_uvg_config(const uvg_config *config) {
+    if (config == NULL) {
+        printf("UVG Configuration: NULL\n");
+        return;
+    }
+}
+
 UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
 {
     UVG_INFO("depth %d", h266_config->depth[0]);
@@ -102,6 +111,25 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
     g_ctx.config->target_bitrate = h266_config->bitrate;
     g_ctx.config->input_bitdepth = h266_config->depth[0];
     g_ctx.config->file_format = UVG_FORMAT_YUV;
+
+    // Inject additional properties
+    g_ctx.config->aud_enable = h266_config->aud_enable;
+    g_ctx.config->intra_period = h266_config->intra_refresh;
+
+# if 1
+    //g_ctx.config->framerate_num = 30;
+    UVG_INFO("WIDTH %d",g_ctx.config->width);
+    UVG_INFO("HEIGHT %d",g_ctx.config->height);
+    UVG_INFO("QP %d",g_ctx.config->qp);
+    UVG_INFO("FRAMERATE %d",g_ctx.config->framerate_num);
+    UVG_INFO("BITRATE %d",g_ctx.config->target_bitrate);
+    UVG_INFO("INPUT BITDEPTH %d",g_ctx.config->input_bitdepth);
+    UVG_INFO("FILE FORMAT %d",g_ctx.config->file_format);
+
+#endif
+
+   
+
     g_ctx.config->rc_algorithm = UVG_OBA;
 
     if(h266_config->format == H266_VIDEO_FORMAT_I420 || 
