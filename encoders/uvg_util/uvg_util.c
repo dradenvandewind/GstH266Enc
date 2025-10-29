@@ -116,6 +116,7 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
     g_ctx.config->aud_enable = h266_config->aud_enable;
     g_ctx.config->intra_period = h266_config->intra_refresh;
     g_ctx.config->threads = h266_config->threads;
+    g_ctx.config->ime_algorithm = h266_config->ime_algorithm;
 
 
 # if 1

@@ -58,7 +58,8 @@ enum
   PROP_QP,
   PROP_AUD,
   PROP_INTRA_REFRESH,
-  PROP_THREADS 
+  PROP_THREADS,
+  PROP_ME
 };
 #define DUMP_YUV_PLANES false  
 #define PROP_BITRATE_DEFAULT            (10 * 1000000)
@@ -67,6 +68,7 @@ enum
 #define PROP_INTRA_REFRESH_DEFAULT    64
 #define ARG_AU_NALU_DEFAULT          TRUE
 #define ARG_THREADS_DEFAULT            0 
+#define ARG_IME_ALGORITHMS             0 //hexbs
 
 
 static int video_width = 0;
@@ -221,6 +223,21 @@ gst_h266enc_class_init (Gsth266encClass * klass)
           "Number of threads used by the codec (0 for automatic)",
           0, G_MAXINT, ARG_THREADS_DEFAULT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  
+  g_object_class_install_property (gobject_class, PROP_ME,
+      g_param_spec_uint ("me", "ME",
+          "Integer motion estimation algorithm [hexbs]\n"
+    "                                   - 0 : hexbs: Hexagon Based Search\n"
+    "                                   - 1 : tz:    Test Zone Search\n"
+    "                                   - 2 : full:  Full Search\n"
+    "                                   - 3 : full8\n"
+    "                                   - 4 : full16\n"
+    "                                   - 5 : full32\n"
+    "                                   - 6 : full64\n"
+    "                                   - 7 : dia:   Diamond Search\n",
+          0, 7, ARG_IME_ALGORITHMS,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  
 
 
   supported_sinkcaps = gst_caps_new_simple ("video/x-raw",
@@ -255,6 +272,7 @@ gst_h266enc_init (Gsth266enc * encoder)
   encoder->uvg_aud = ARG_AU_NALU_DEFAULT;
   encoder->intra_refresh = PROP_INTRA_REFRESH_DEFAULT;
   encoder->threads = ARG_THREADS_DEFAULT;
+  encoder->ime_algorithm = ARG_IME_ALGORITHMS;
 
 }
 
@@ -300,6 +318,7 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
     h266Config.aud_enable = encoder->uvg_aud;
     h266Config.intra_refresh = encoder->intra_refresh;
     h266Config.threads = encoder->threads;
+    h266Config.ime_algorithm = encoder->ime_algorithm;
   }
   else {
     GST_ERROR("Unsupported encoder type %s", ENCODER_TYPE);
@@ -642,6 +661,14 @@ gst_h266enc_set_property (GObject * object, guint prop_id,
     case PROP_THREADS:
       encoder->threads = g_value_get_uint (value);
       break;
+    case PROP_ME:
+      encoder->ime_algorithm = g_value_get_uint (value);
+      if(encoder->ime_algorithm < 0 || encoder->ime_algorithm > 7)
+      {
+        GST_INFO(" Me has a value outside the supported values, we force it to take the default value.");
+        encoder->ime_algorithm = 0;
+      }
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -674,6 +701,9 @@ gst_h266enc_get_property (GObject * object, guint prop_id,
       break;
     case PROP_THREADS:
       g_value_set_uint (value, encoder->threads);
+      break;
+    case PROP_ME:
+      g_value_set_uint (value, encoder->ime_algorithm);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);

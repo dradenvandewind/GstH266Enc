@@ -77,6 +77,7 @@ struct H266_CONFIG {
     int aud_enable;
     int intra_refresh;
     int threads;
+    int ime_algorithm;
 
 };
 
