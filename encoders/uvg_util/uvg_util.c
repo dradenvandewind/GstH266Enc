@@ -115,6 +115,8 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
     // Inject additional properties
     g_ctx.config->aud_enable = h266_config->aud_enable;
     g_ctx.config->intra_period = h266_config->intra_refresh;
+    g_ctx.config->threads = h266_config->threads;
+
 
 # if 1
     //g_ctx.config->framerate_num = 30;

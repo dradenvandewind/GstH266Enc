@@ -67,6 +67,7 @@ struct _Gsth266enc
   gint qp;
   gboolean uvg_aud;
   gint intra_refresh;
+  gint threads;
   
   gint logLevel;
   FILE *fp, *fp_Y, *fp_U, *fp_V;

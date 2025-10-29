@@ -76,6 +76,7 @@ struct H266_CONFIG {
    /* UVG config to inject additionnal props*/
     int aud_enable;
     int intra_refresh;
+    int threads;
 
 };
 

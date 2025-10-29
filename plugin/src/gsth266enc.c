@@ -57,7 +57,8 @@ enum
   PROP_BITRATE,
   PROP_QP,
   PROP_AUD,
-  PROP_INTRA_REFRESH 
+  PROP_INTRA_REFRESH,
+  PROP_THREADS 
 };
 #define DUMP_YUV_PLANES false  
 #define PROP_BITRATE_DEFAULT            (10 * 1000000)
@@ -65,6 +66,7 @@ enum
 
 #define PROP_INTRA_REFRESH_DEFAULT    64
 #define ARG_AU_NALU_DEFAULT          TRUE
+#define ARG_THREADS_DEFAULT            0 
 
 
 static int video_width = 0;
@@ -214,6 +216,12 @@ gst_h266enc_class_init (Gsth266encClass * klass)
           0, G_MAXINT, PROP_INTRA_REFRESH_DEFAULT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (gobject_class, PROP_THREADS,
+      g_param_spec_uint ("threads", "Threads",
+          "Number of threads used by the codec (0 for automatic)",
+          0, G_MAXINT, ARG_THREADS_DEFAULT,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
 
   supported_sinkcaps = gst_caps_new_simple ("video/x-raw",
     "framerate", GST_TYPE_FRACTION_RANGE, 0, 1, G_MAXINT, 1,
@@ -246,6 +254,7 @@ gst_h266enc_init (Gsth266enc * encoder)
   encoder->bitrate = PROP_BITRATE_DEFAULT;
   encoder->uvg_aud = ARG_AU_NALU_DEFAULT;
   encoder->intra_refresh = PROP_INTRA_REFRESH_DEFAULT;
+  encoder->threads = ARG_THREADS_DEFAULT;
 
 }
 
@@ -289,20 +298,15 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
   }
   else if (strcmp(ENCODER_TYPE, "UVG_ENCODER") == 0) {
     h266Config.aud_enable = encoder->uvg_aud;
-
     h266Config.intra_refresh = encoder->intra_refresh;
+    h266Config.threads = encoder->threads;
   }
   else {
     GST_ERROR("Unsupported encoder type %s", ENCODER_TYPE);
     return FALSE;
   }
 
-  
-
-  
-
-
-  
+   
   h266Config.depth[0] = encoder->input_state->info.finfo->depth[0];
   h266Config.depth[1] = encoder->input_state->info.finfo->depth[1];
   h266Config.depth[2] = encoder->input_state->info.finfo->depth[2];
@@ -635,6 +639,9 @@ gst_h266enc_set_property (GObject * object, guint prop_id,
     case PROP_INTRA_REFRESH:
       encoder->intra_refresh = g_value_get_uint (value);
       break;
+    case PROP_THREADS:
+      encoder->threads = g_value_get_uint (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -664,7 +671,10 @@ gst_h266enc_get_property (GObject * object, guint prop_id,
       break;
     case PROP_INTRA_REFRESH:
       g_value_set_uint (value, encoder->intra_refresh);
-      break;  
+      break;
+    case PROP_THREADS:
+      g_value_set_uint (value, encoder->threads);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
