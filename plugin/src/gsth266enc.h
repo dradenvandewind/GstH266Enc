@@ -70,6 +70,8 @@ struct _Gsth266enc
   gint threads;
   gint ime_algorithm;
   gint rate_control;
+  gint alf;
+  gint sao;
   
   gint logLevel;
   FILE *fp, *fp_Y, *fp_U, *fp_V;

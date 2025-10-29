@@ -79,6 +79,8 @@ struct H266_CONFIG {
     int threads;
     int ime_algorithm;
     int rate_control;
+    int alf;
+    int sao;
 
 };
 

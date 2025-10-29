@@ -60,7 +60,9 @@ enum
   PROP_INTRA_REFRESH,
   PROP_THREADS,
   PROP_ME,
-  PROP_RATE_CONTROL
+  PROP_RATE_CONTROL,
+  PROP_ADAPT_LOOP_FILTER,
+  PROP_SAMPLE_ADAPTATIVE_FILTER
 };
 #define DUMP_YUV_PLANES false  
 #define PROP_BITRATE_DEFAULT            (10 * 1000000)
@@ -70,7 +72,9 @@ enum
 #define ARG_AU_NALU_DEFAULT          TRUE
 #define ARG_THREADS_DEFAULT            0 
 #define ARG_IME_ALGORITHMS             0 //hexbs
-#define ARG_RATE_CONTROL               2 //UVG_OBA //2 
+#define ARG_RATE_CONTROL               2 //UVG_OBA 
+#define ARG_ADAPT_LOOP_FILTER          0 // OFF 
+#define ARG_SAMPLE_ADAPTATIVE_FILTER   3
 
 
 static int video_width = 0;
@@ -249,6 +253,28 @@ gst_h266enc_class_init (Gsth266encClass * klass)
     "                                   - 2 : oba:  DOI: 10.1109/TCSVT.2016.2589878\n",
           0, 2, ARG_RATE_CONTROL,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_ADAPT_LOOP_FILTER,
+      g_param_spec_uint ("alf", "ALF",
+          "Adaptive Loop Filter [off]\n"
+    "                                   - 0 : off ALF disabled \n"
+    "                                   - 1 : ALF enabled without cross component refinement\n"
+    "                                   - 2 : Full ALF\n",
+          0, 2, ARG_ADAPT_LOOP_FILTER,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_SAMPLE_ADAPTATIVE_FILTER,
+      g_param_spec_uint ("sao", "SAO",
+          "Sample Adaptive Offset [full]\n"
+    "                                   - 0 : off SAO disabled \n"
+    "                                   - 1 : Band offset only\n"
+    "                                   - 2 : Edge offset only\n"
+    "                                   - 3 : Full SAO\n",
+          0, 3, ARG_SAMPLE_ADAPTATIVE_FILTER,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+
+        
   
 
 
@@ -286,6 +312,8 @@ gst_h266enc_init (Gsth266enc * encoder)
   encoder->threads = ARG_THREADS_DEFAULT;
   encoder->ime_algorithm = ARG_IME_ALGORITHMS;
   encoder->rate_control = ARG_RATE_CONTROL;
+  encoder->alf = ARG_ADAPT_LOOP_FILTER;
+  encoder->sao = ARG_SAMPLE_ADAPTATIVE_FILTER;
 
 }
 
@@ -333,6 +361,8 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
     h266Config.threads = encoder->threads;
     h266Config.ime_algorithm = encoder->ime_algorithm;
     h266Config.rate_control = encoder->rate_control;
+    h266Config.alf = encoder->alf;
+    h266Config.sao = encoder->sao;
   }
   else {
     GST_ERROR("Unsupported encoder type %s", ENCODER_TYPE);
@@ -686,6 +716,13 @@ gst_h266enc_set_property (GObject * object, guint prop_id,
     case PROP_RATE_CONTROL:
       encoder->rate_control  = g_value_get_uint (value);
       break;
+    case PROP_ADAPT_LOOP_FILTER:
+      encoder->alf = g_value_get_uint (value);
+      break;
+    case PROP_SAMPLE_ADAPTATIVE_FILTER:
+      encoder->sao = g_value_get_uint (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -724,6 +761,12 @@ gst_h266enc_get_property (GObject * object, guint prop_id,
       break;
     case PROP_RATE_CONTROL:
       g_value_set_uint (value, encoder->rate_control);
+      break;
+    case PROP_ADAPT_LOOP_FILTER:
+      g_value_set_uint (value, encoder->alf);
+      break;
+    case PROP_SAMPLE_ADAPTATIVE_FILTER:
+      g_value_set_uint (value, encoder->sao);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);

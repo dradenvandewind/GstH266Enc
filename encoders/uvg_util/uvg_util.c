@@ -118,6 +118,8 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
     g_ctx.config->threads = h266_config->threads;
     g_ctx.config->ime_algorithm = h266_config->ime_algorithm;
     g_ctx.config->rc_algorithm = h266_config->rate_control;
+    g_ctx.config->alf_type = h266_config->alf;
+    g_ctx.config->sao_type = h266_config->sao;
 
 
 # if 1
