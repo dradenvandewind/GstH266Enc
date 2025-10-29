@@ -117,6 +117,7 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
     g_ctx.config->intra_period = h266_config->intra_refresh;
     g_ctx.config->threads = h266_config->threads;
     g_ctx.config->ime_algorithm = h266_config->ime_algorithm;
+    g_ctx.config->rc_algorithm = h266_config->rate_control;
 
 
 # if 1
@@ -133,7 +134,7 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
 
    
 
-    g_ctx.config->rc_algorithm = UVG_OBA;
+    //g_ctx.config->rc_algorithm = UVG_OBA;
 
     if(h266_config->format == H266_VIDEO_FORMAT_I420 || 
        h266_config->format == H266_VIDEO_FORMAT_I420_10LE) {

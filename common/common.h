@@ -78,6 +78,7 @@ struct H266_CONFIG {
     int intra_refresh;
     int threads;
     int ime_algorithm;
+    int rate_control;
 
 };
 

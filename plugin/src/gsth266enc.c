@@ -59,7 +59,8 @@ enum
   PROP_AUD,
   PROP_INTRA_REFRESH,
   PROP_THREADS,
-  PROP_ME
+  PROP_ME,
+  PROP_RATE_CONTROL
 };
 #define DUMP_YUV_PLANES false  
 #define PROP_BITRATE_DEFAULT            (10 * 1000000)
@@ -69,6 +70,7 @@ enum
 #define ARG_AU_NALU_DEFAULT          TRUE
 #define ARG_THREADS_DEFAULT            0 
 #define ARG_IME_ALGORITHMS             0 //hexbs
+#define ARG_RATE_CONTROL               2 //UVG_OBA //2 
 
 
 static int video_width = 0;
@@ -237,6 +239,16 @@ gst_h266enc_class_init (Gsth266encClass * klass)
     "                                   - 7 : dia:   Diamond Search\n",
           0, 7, ARG_IME_ALGORITHMS,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    
+    
+  g_object_class_install_property (gobject_class, PROP_RATE_CONTROL,
+      g_param_spec_uint ("rc", "RC",
+          "Select used rc-algorithm [oba]\n"
+    "                                   - 0 : No rate control \n"
+    "                                   - 1 : lambda: rate control from: DOI: 10.1109/TIP.2014.2336550\n"
+    "                                   - 2 : oba:  DOI: 10.1109/TCSVT.2016.2589878\n",
+          0, 2, ARG_RATE_CONTROL,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
   
 
 
@@ -273,6 +285,7 @@ gst_h266enc_init (Gsth266enc * encoder)
   encoder->intra_refresh = PROP_INTRA_REFRESH_DEFAULT;
   encoder->threads = ARG_THREADS_DEFAULT;
   encoder->ime_algorithm = ARG_IME_ALGORITHMS;
+  encoder->rate_control = ARG_RATE_CONTROL;
 
 }
 
@@ -319,6 +332,7 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
     h266Config.intra_refresh = encoder->intra_refresh;
     h266Config.threads = encoder->threads;
     h266Config.ime_algorithm = encoder->ime_algorithm;
+    h266Config.rate_control = encoder->rate_control;
   }
   else {
     GST_ERROR("Unsupported encoder type %s", ENCODER_TYPE);
@@ -669,6 +683,9 @@ gst_h266enc_set_property (GObject * object, guint prop_id,
         encoder->ime_algorithm = 0;
       }
       break;
+    case PROP_RATE_CONTROL:
+      encoder->rate_control  = g_value_get_uint (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -704,6 +721,9 @@ gst_h266enc_get_property (GObject * object, guint prop_id,
       break;
     case PROP_ME:
       g_value_set_uint (value, encoder->ime_algorithm);
+      break;
+    case PROP_RATE_CONTROL:
+      g_value_set_uint (value, encoder->rate_control);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
