@@ -47,7 +47,6 @@
 
 GST_DEBUG_CATEGORY_STATIC (gst_h266enc_debug);
 #define GST_CAT_DEFAULT gst_h266enc_debug
-
 GMutex frame_mutex;
 
 enum
@@ -62,8 +61,23 @@ enum
   PROP_ME,
   PROP_RATE_CONTROL,
   PROP_ADAPT_LOOP_FILTER,
-  PROP_SAMPLE_ADAPTATIVE_FILTER
+  PROP_SAMPLE_ADAPTATIVE_FILTER,
+  PROP_PRESET
 };
+static const GEnumValue preset_values[] = {
+  { PRESET_ULTRAFAST, "PRESET_ULTRAFAST", "ultrafast" },
+  { PRESET_SUPERFAST, "PRESET_SUPERFAST", "superfast" },
+  { PRESET_VERYFAST, "PRESET_VERYFAST", "veryfast" },
+  { PRESET_FASTER, "PRESET_FASTER", "faster" },
+  { PRESET_FAST, "PRESET_FAST", "fast" },
+  { PRESET_MEDIUM, "PRESET_MEDIUM", "medium" },
+  { PRESET_SLOW, "PRESET_SLOW", "slow" },
+  { PRESET_SLOWER, "PRESET_SLOWER", "slower" },
+  { PRESET_VERYSLOW, "PRESET_VERYSLOW", "veryslow" },
+  { PRESET_PLACEBO, "PRESET_PLACEBO", "placebo" },
+  { 0, NULL, NULL }
+};
+
 #define DUMP_YUV_PLANES false  
 #define PROP_BITRATE_DEFAULT            (10 * 1000000)
 #define PROP_QP_DEFAULT                 32
@@ -75,11 +89,25 @@ enum
 #define ARG_RATE_CONTROL               2 //UVG_OBA 
 #define ARG_ADAPT_LOOP_FILTER          0 // OFF 
 #define ARG_SAMPLE_ADAPTATIVE_FILTER   3
+#define ARG_PRESET_DEFAULT PRESET_ULTRAFAST
+
 
 
 static int video_width = 0;
 static int video_height = 0;
 static int video_frame_rate = 0;
+
+GType gst_h266_enc_preset_get_type (void)
+{
+  static GType type = 0;
+  
+  if (G_UNLIKELY (type == 0)) {
+    type = g_enum_register_static ("GstH266EncPreset", preset_values);
+  }
+  
+  return type;
+}
+
 
 static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
@@ -273,7 +301,12 @@ gst_h266enc_class_init (Gsth266encClass * klass)
           0, 3, ARG_SAMPLE_ADAPTATIVE_FILTER,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-
+  g_object_class_install_property (gobject_class, PROP_PRESET,
+      g_param_spec_enum ("preset", "Preset",
+                        "Encoding preset (speed/quality tradeoff)",
+                        GST_TYPE_H266_ENC_PRESET,
+                        PRESET_ULTRAFAST,
+                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
         
   
 
@@ -314,6 +347,7 @@ gst_h266enc_init (Gsth266enc * encoder)
   encoder->rate_control = ARG_RATE_CONTROL;
   encoder->alf = ARG_ADAPT_LOOP_FILTER;
   encoder->sao = ARG_SAMPLE_ADAPTATIVE_FILTER;
+  encoder->preset = ARG_PRESET_DEFAULT;
 
 }
 
@@ -363,6 +397,7 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
     h266Config.rate_control = encoder->rate_control;
     h266Config.alf = encoder->alf;
     h266Config.sao = encoder->sao;
+    h266Config.preset = encoder->preset;
   }
   else {
     GST_ERROR("Unsupported encoder type %s", ENCODER_TYPE);
@@ -722,7 +757,9 @@ gst_h266enc_set_property (GObject * object, guint prop_id,
     case PROP_SAMPLE_ADAPTATIVE_FILTER:
       encoder->sao = g_value_get_uint (value);
       break;
-
+    case PROP_PRESET:
+      encoder->preset = g_value_get_enum(value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -767,6 +804,9 @@ gst_h266enc_get_property (GObject * object, guint prop_id,
       break;
     case PROP_SAMPLE_ADAPTATIVE_FILTER:
       g_value_set_uint (value, encoder->sao);
+      break;
+    case PROP_PRESET:
+      g_value_set_enum(value, encoder->preset);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);

@@ -81,6 +81,7 @@ struct H266_CONFIG {
     int rate_control;
     int alf;
     int sao;
+    int preset;
 
 };
 

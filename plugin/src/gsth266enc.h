@@ -54,6 +54,20 @@ G_BEGIN_DECLS
 typedef struct _Gsth266encClass Gsth266encClass;
 typedef struct _Gsth266enc Gsth266enc;
 
+typedef enum {
+  PRESET_ULTRAFAST,
+  PRESET_SUPERFAST,
+  PRESET_VERYFAST,
+  PRESET_FASTER,
+  PRESET_FAST,
+  PRESET_MEDIUM,
+  PRESET_SLOW,
+  PRESET_SLOWER,
+  PRESET_VERYSLOW,
+  PRESET_PLACEBO
+} GstH266EncPreset;
+
+
 struct _Gsth266enc
 {
   GstVideoEncoder element;
@@ -72,6 +86,7 @@ struct _Gsth266enc
   gint rate_control;
   gint alf;
   gint sao;
+  GstH266EncPreset preset;
   
   gint logLevel;
   FILE *fp, *fp_Y, *fp_U, *fp_V;
@@ -91,6 +106,10 @@ struct _Gsth266encClass
 };
 
 GType gst_h266enc_get_type (void);
+
+#define GST_TYPE_H266_ENC_PRESET (gst_h266_enc_preset_get_type())
+
+GType gst_h266_enc_preset_get_type (void);
 
 GST_ELEMENT_REGISTER_DECLARE (h266enc);
 

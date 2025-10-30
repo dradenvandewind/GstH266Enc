@@ -67,6 +67,7 @@ void print_uvg_config(const uvg_config *config) {
 
 UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
 {
+    int preset = 0;
     UVG_INFO("depth %d", h266_config->depth[0]);
     
     // Initialiser le mutex
@@ -120,6 +121,39 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
     g_ctx.config->rc_algorithm = h266_config->rate_control;
     g_ctx.config->alf_type = h266_config->alf;
     g_ctx.config->sao_type = h266_config->sao;
+#if 0
+    preset = h266_config->preset;
+    /* LOAD Preset              */
+    int preset_line = 0;
+    // Check
+    if ((atoi(preset) == 0 && !strcmp(preset, "0")) || (atoi(preset) >= 1 && atoi(preset) <= 9)) {
+        preset_line = atoi(preset);
+    } else {
+      // Find the selected preset from the list
+      while (preset_values[preset_line][0] != NULL) {
+        if (!strcmp(preset, preset_values[preset_line][0])) {
+          break;
+        }
+        preset_line++;
+      }
+    }
+
+    if (preset_values[preset_line][0] != NULL) {
+      UVG_INFO("Using preset %s: ", preset);
+      // Loop all the name and value pairs and push to the config parser
+      for (int preset_value = 1; preset_values[preset_line][preset_value] != NULL; preset_value += 2) {
+        UVG_INFO("--%s=%s ", preset_values[preset_line][preset_value], preset_values[preset_line][preset_value + 1]);
+        uvg_config_parse(g_ctx.config, preset_values[preset_line][preset_value], preset_values[preset_line][preset_value + 1]);
+      }
+      UVG_INFO( "\n");
+    } else {
+      UVG_ERROR("Input error: unknown preset \"%s\"\n", preset);
+      return 0;
+    }
+#endif
+
+
+    
 
 
 # if 1
