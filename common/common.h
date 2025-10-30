@@ -83,6 +83,37 @@ struct H266_CONFIG {
     int sao;
     int preset;
 
+    /* add parameter for preset */
+    int subme;
+    int rdo;  /// check
+    int ref_frames;
+    int max_merge;
+    int deblock_enable;
+    int deblock_beta; //check
+    int deblock_tc; //check
+
+    int gop_len;
+    int signhide_enable;// **
+
+    int rdoq_enable;// *
+    int rdoq_skip;
+
+
+    //int transform_skip;
+    int trskip_enable;
+
+    int mv_rdo;
+    int full_intra_search;
+    int early_skip;
+
+    int fast_residual_cost_limit;
+    int cclm;
+    int dual_tree;
+    int jccr;
+    int mip;
+    int mrl;
+    int dep_quant;
+    
 };
 
 struct H266_PLANE {

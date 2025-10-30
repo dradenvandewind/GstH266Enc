@@ -46,6 +46,7 @@ uvg_dependency = declare_dependency(
 )
 
 uvg_util_sources = [
+  'helper.c',
   'uvg_util.c',
   '../../common/log.c',
 ]
