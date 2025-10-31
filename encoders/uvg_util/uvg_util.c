@@ -97,6 +97,22 @@ static void apply_preset_settings(H266Config* config, const char* preset_name) {
                 else if (strcmp(key, "rd") == 0) {
                     config->rdo = atoi(value);
                 }
+                else if (strcmp(key, "ref") == 0) {
+                    int tmp_ref = atoi(value);
+                    if(tmp_ref <= 0)
+                    {
+                        config->ref_frames= 1;
+                    }
+                    else if(tmp_ref > 15){
+                        config->ref_frames = 15;
+                    }
+                    else
+                    {
+                        config->ref_frames = tmp_ref;
+                        printf("Ref frames: %d\n",config->ref_frames);
+                    }
+     
+                }
                 else if (strcmp(key, "rdoq") == 0) {
                     config->rdoq_enable = atoi(value);
                 }
@@ -155,8 +171,12 @@ static void apply_preset_settings(H266Config* config, const char* preset_name) {
                     config->mrl = atoi(value);
                 }
                 else if (strcmp(key, "dep-quant") == 0) {
-                    config->dep_quant = atoi(value);
+                    if (strcmp(preset_values[i][0], "ultrafast") != 0)
+                    {
+                        config->dep_quant = atoi(value);
+                    }
                 }
+
                 
                 printf("  %s = %s\n", key, value);
             }

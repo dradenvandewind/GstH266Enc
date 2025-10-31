@@ -750,6 +750,10 @@ gst_h266enc_set_property (GObject * object, guint prop_id,
       break;
     case PROP_RATE_CONTROL:
       encoder->rate_control  = g_value_get_uint (value);
+      if(!encoder->rate_control)
+      {
+        encoder->rate_control = 1; // same comportements as uvg266 in cfg.c
+      }
       break;
     case PROP_ADAPT_LOOP_FILTER:
       encoder->alf = g_value_get_uint (value);
