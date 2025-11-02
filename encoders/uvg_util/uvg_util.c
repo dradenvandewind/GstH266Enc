@@ -55,155 +55,77 @@ typedef struct UVGenCContext {
 } UVGenCContext;
 
 static UVGenCContext g_ctx = {0};
+// Function to display the uvg_config structure
+void print_uvg_config_by_name(const uvg_config *config, const char *name);
 
-/*
-                else if (strcmp(key, "ref") == 0) {
-                    config->ref_frames = atoi(value);
-                }
-*/
-
-
-void print_uvg_config(const uvg_config* config);
-#if 1
-static void apply_preset_settings(H266Config* config, const char* preset_name) {
-    if (!config || !preset_name) return;
-    
-    // Browse all presets
-    for (int i = 0; i < 11 && preset_values[i][0] != NULL; i++) {
-        // Compare the preset name with strcmp
-        if (strcmp(preset_values[i][0], preset_name) == 0) {
-            printf("Applying preset: %s\n", preset_name);
-            
-            // Browse all key-value pairs in the preset
-            for (int j = 1; preset_values[i][j] != NULL && preset_values[i][j+1] != NULL; j += 2) {
-                const char* key = preset_values[i][j];
-                const char* value = preset_values[i][j+1];
-                
-                // Apply settings according to key
-                if (strcmp(key, "sao") == 0) {
-                    if (strcmp(value, "off") == 0) config->sao = 0;
-                    else if (strcmp(value, "band") == 0) config->sao = 1;
-                    else if (strcmp(value, "edge") == 0) config->sao = 2;
-                    else if (strcmp(value, "full") == 0) config->sao = 3;
-                }
-                else if (strcmp(key, "alf") == 0) {
-                    if (strcmp(value, "off") == 0) config->alf = 0;
-                    else if (strcmp(value, "nocc") == 0) config->alf = 1;
-                    else if (strcmp(value, "full") == 0) config->alf = 2;
-                }
-                else if (strcmp(key, "subme") == 0) {
-                    config->subme = atoi(value);
-                }
-                else if (strcmp(key, "rd") == 0) {
-                    config->rdo = atoi(value);
-                }
-                else if (strcmp(key, "ref") == 0) {
-                    int tmp_ref = atoi(value);
-                    if(tmp_ref <= 0)
-                    {
-                        config->ref_frames= 1;
-                    }
-                    else if(tmp_ref > 15){
-                        config->ref_frames = 15;
-                    }
-                    else
-                    {
-                        config->ref_frames = tmp_ref;
-                        printf("Ref frames: %d\n",config->ref_frames);
-                    }
-     
-                }
-                else if (strcmp(key, "rdoq") == 0) {
-                    config->rdoq_enable = atoi(value);
-                }
-                else if (strcmp(key, "gop") == 0) {
-                    config->gop_len = atoi(value);
-                }
-                else if (strcmp(key, "max-merge") == 0) {
-                    config->max_merge = atoi(value);
-                }
-                else if (strcmp(key, "me") == 0) {
-                    if (strcmp(value, "hexbs") == 0) config->ime_algorithm = 0;
-                    else if (strcmp(value, "tz") == 0) config->ime_algorithm = 1;
-                    else if (strcmp(value, "full") == 0) config->ime_algorithm = 2;
-                }
-                else if (strcmp(key, "deblock") == 0) {
-                    // Manage the “0:0” format
-                    sscanf(value, "%d:%d", &config->deblock_beta, &config->deblock_tc);
-                    config->deblock_enable = 1;
-
-                }
-                else if (strcmp(key, "signhide") == 0) {
-                    config->signhide_enable = atoi(value);
-                }
-                else if (strcmp(key, "rdoq-skip") == 0) {
-                    config->rdoq_skip = atoi(value);
-                    config->rdoq_enable = 1;
-                }
-                else if (strcmp(key, "transform-skip") == 0) {
-                    config->trskip_enable = atoi(value);
-                }
-                else if (strcmp(key, "mv-rdo") == 0) {
-                    config->mv_rdo = atoi(value);
-                }
-                else if (strcmp(key, "full-intra-search") == 0) {
-                    config->full_intra_search = atoi(value);
-                }
-                else if (strcmp(key, "early-skip") == 0) {
-                    config->early_skip = atoi(value);
-                }
-                else if (strcmp(key, "fast-residual-cost") == 0) {
-                    config->fast_residual_cost_limit = atoi(value);
-                }
-                else if (strcmp(key, "cclm") == 0) {
-                    config->cclm = atoi(value);
-                }
-                else if (strcmp(key, "dual-tree") == 0) {
-                    config->dual_tree = atoi(value);
-                }
-                else if (strcmp(key, "jccr") == 0) {
-                    config->jccr = atoi(value);
-                }
-                else if (strcmp(key, "mip") == 0) {
-                    config->mip = atoi(value);
-                }
-                else if (strcmp(key, "mrl") == 0) {
-                    config->mrl = atoi(value);
-                }
-                else if (strcmp(key, "dep-quant") == 0) {
-                    if (strcmp(preset_values[i][0], "ultrafast") != 0)
-                    {
-                        config->dep_quant = atoi(value);
-                    }
-                }
-
-                
-                printf("  %s = %s\n", key, value);
-            }
-            return; // Preset found and applied
-        }
-    }
-    
-    printf("Warning: preset '%s' not found, using default settings\n", preset_name);
-}
-
-#endif 
 
 
 // Function to display the uvg_config structure
-void print_uvg_config(const uvg_config *config) {
-    if (config == NULL) {
-        printf("UVG Configuration: NULL\n");
+void print_uvg_config_by_name(const uvg_config *config, const char *name) {
+    if (!config) {
+        printf("Config %s: NULL\n", name);
         return;
     }
+    
+    printf("=== UVG_CONFIG: %s ===\n", name);
+    printf("Basic Parameters:\n");
+    printf("  qp: %d, intra_period: %d, vps_period: %d\n", config->qp, config->intra_period, config->vps_period);
+    printf("  width: %d, height: %d, framerate: %d/%d\n", config->width, config->height, 
+           config->framerate_num, config->framerate_denom);
+    printf("  target_bitrate: %d, input_bitdepth: %d\n", config->target_bitrate, config->input_bitdepth);
+    
+    printf("\nFilter Flags:\n");
+    printf("  lmcs_enable: %d, deblock_enable: %d, sao_type: %d\n", config->lmcs_enable, config->deblock_enable, config->sao_type);
+    printf("  alf_type: %d, rdoq_enable: %d, signhide_enable: %d\n", config->alf_type, config->rdoq_enable, config->signhide_enable);
+    
+    printf("\nPU Depths:\n");
+    printf("  pu_depth_intra: ");
+    for (int i = 0; i < UVG_MAX_GOP_LAYERS; i++) {
+        printf("[%d-%d] ", config->pu_depth_intra.min[i], config->pu_depth_intra.max[i]);
+    }
+    printf("\n  pu_depth_inter: ");
+    for (int i = 0; i < UVG_MAX_GOP_LAYERS; i++) {
+        printf("[%d-%d] ", config->pu_depth_inter.min[i], config->pu_depth_inter.max[i]);
+    }
+    printf("\n");
+    
+    printf("\nGOP Settings:\n");
+    printf("  gop_len: %d, gop_lowdelay: %d\n", config->gop_len, config->gop_lowdelay);
+    printf("  open_gop: %d\n", config->open_gop);
+    
+    printf("\nMotion & Transform:\n");
+    printf("  mts: %d, ime_algorithm: %d, fme_level: %d\n", config->mts, config->ime_algorithm, config->fme_level);
+    printf("  bipred: %d, mv_rdo: %d, amvr: %d\n", config->bipred, config->mv_rdo, config->amvr);
+    printf("  mrl: %d, mip: %d, lfnst: %d, isp: %d\n", config->mrl, config->mip, config->lfnst, config->isp);
+    
+    printf("\nAdvanced Features:\n");
+    printf("  dep_quant: %d, ibc: %d, tmvp_enable: %d\n", config->dep_quant, config->ibc, config->tmvp_enable);
+    printf("  lossless: %d, intra_rdo_et: %d\n", config->lossless, config->intra_rdo_et);
+    
+    printf("\nParallel Processing:\n");
+    printf("  threads: %d, wpp: %d, owf: %d\n", config->threads, config->wpp, config->owf);
+    printf("  tiles: %dx%d, slices: %u\n", config->tiles_width_count, config->tiles_height_count, config->slices);
+    
+    printf("\nRate Control:\n");
+    printf("  rc_algorithm: %d, intra_bit_allocation: %d\n", config->rc_algorithm, config->intra_bit_allocation);
+    printf("  vaq: %d\n", config->vaq);
+    
+    printf("\nFile & Format:\n");
+    printf("  input_format: %d, file_format: %d\n", config->input_format, config->file_format);
+    printf("  cqmfile: %s\n", config->cqmfile ? config->cqmfile : "NULL");
+    
+    printf("=== END CONFIG ===\n\n");
 }
+
 
 UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
 {
     int preset = 0;
+    const char* preset_str = NULL;
+
     UVG_INFO("depth %d", h266_config->depth[0]);
     
-    // Initialiser le mutex
+    // Mutex Init
     if (pthread_mutex_init(&g_ctx.encode_mutex, NULL) != 0) {
         UVG_ERROR("Failed to initialize encode mutex");
         return -1;
@@ -248,7 +170,6 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
 
     // Inject additional properties
     g_ctx.config->aud_enable = h266_config->aud_enable;
-    g_ctx.config->intra_period = h266_config->intra_refresh;
     g_ctx.config->threads = h266_config->threads;
     g_ctx.config->ime_algorithm = h266_config->ime_algorithm;
     g_ctx.config->rc_algorithm = h266_config->rate_control;
@@ -256,28 +177,21 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
     g_ctx.config->sao_type = h266_config->sao;
 #if 1
     preset = h266_config->preset;
-    UVG_INFO("## get preset %d",h266_config->preset);
-    const char* preset_str = NULL;
-
-    switch (h266_config->preset) {
-        case 0: preset_str = "ultrafast"; break;
-        case 1: preset_str = "superfast"; break;
-        case 2: preset_str = "veryfast"; break;
-        case 3: preset_str = "faster"; break;
-        case 4: preset_str = "fast"; break;
-        case 5: preset_str = "medium"; break;
-        case 6: preset_str = "slow"; break;
-        case 7: preset_str = "slower"; break;
-        case 8: preset_str = "veryslow"; break;
-        case 9: preset_str = "placebo"; break;
-        default: preset_str = "medium"; break;
-    }
-    UVG_INFO(" preset_str %s",preset_str);
-    int preset_line = 0;
-    preset_line = h266_config->preset;
-    if ( h266_config->preset >=0 || h266_config->preset <= 9 )
+    if ( preset >=0 && preset <= 9 )
     {
-        apply_preset_settings(g_ctx.config, preset_values[preset_line][0]);
+        preset_str = preset_strings[preset];
+        UVG_INFO("## Apply this preset %d",preset_str);
+        uvg_config_parse(g_ctx.config, "preset", preset_str);
+        print_uvg_config_by_name(g_ctx.config,"after");
+        
+    }
+    else{
+        //Workaround we can't reconfigure this parameter with preset settings
+        // encoding not start
+
+        g_ctx.config->intra_period = h266_config->intra_refresh;
+
+
     }
 
 #endif
@@ -344,21 +258,13 @@ UVG_LIBRARY_API int uvg_init(H266Config *h266_config)
 
 UVG_LIBRARY_API int uvg_start(void)
 {
-    if (!g_ctx.initialized) {
-        UVG_ERROR("Encoder not initialized");
-        return -1;
-    }
+ 
     UVG_INFO("UVG266 encoder started successfully");
     return 0;
 }
 
 UVG_LIBRARY_API int uvg_handle(H266Frame *frame)
 {
-    if (!g_ctx.initialized) {
-        UVG_ERROR("Encoder not initialized");
-        return H266_ERR;
-    }
-
     if (!frame) {
         UVG_ERROR("Frame is NULL");
         return H266_ERR;

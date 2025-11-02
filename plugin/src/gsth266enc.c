@@ -89,7 +89,7 @@ static const GEnumValue preset_values[] = {
 #define ARG_RATE_CONTROL               2 //UVG_OBA 
 #define ARG_ADAPT_LOOP_FILTER          0 // OFF 
 #define ARG_SAMPLE_ADAPTATIVE_FILTER   3
-#define ARG_PRESET_DEFAULT PRESET_ULTRAFAST
+#define ARG_PRESET_DEFAULT  PRESET_MEDIUM
 
 
 
@@ -305,7 +305,7 @@ gst_h266enc_class_init (Gsth266encClass * klass)
       g_param_spec_enum ("preset", "Preset",
                         "Encoding preset (speed/quality tradeoff)",
                         GST_TYPE_H266_ENC_PRESET,
-                        PRESET_ULTRAFAST,
+                        ARG_PRESET_DEFAULT,
                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
         
   
@@ -658,7 +658,7 @@ gst_h266_enc_handle_frame (GstVideoEncoder * video_enc,
 
   GST_INFO("##>>gst_h266_enc_handle_frame status=%d poc=%d", status, poc);
 
-  // frre input frame
+  // free input frame
   if (frame) {
     gst_video_codec_frame_unref(frame);
   }

@@ -7,7 +7,13 @@ extern "C" {
 
 #include "common.h"
 
+static const char* preset_strings[] = {
+    "ultrafast", "superfast", "veryfast", "faster", 
+    "fast", "medium", "slow", "slower", "veryslow", "placebo"   
+};
 
+// This a memo to remember preset definition quickly
+/*
 static const char * const preset_values[11][32*2] = {
       {
         "ultrafast",
@@ -341,9 +347,8 @@ static const char * const preset_values[11][32*2] = {
       },
       { NULL }
   };
+*/
  
-
-//static void apply_preset_settings(H266Config* config, const char* preset_name);
 
 #ifdef __cplusplus
 }
