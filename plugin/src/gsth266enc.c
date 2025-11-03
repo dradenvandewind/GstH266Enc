@@ -62,7 +62,8 @@ enum
   PROP_RATE_CONTROL,
   PROP_ADAPT_LOOP_FILTER,
   PROP_SAMPLE_ADAPTATIVE_FILTER,
-  PROP_PRESET
+  PROP_PRESET,
+  PROP_PRESET_VVC
 };
 static const GEnumValue preset_values[] = {
   { PRESET_ULTRAFAST, "PRESET_ULTRAFAST", "ultrafast" },
@@ -78,6 +79,17 @@ static const GEnumValue preset_values[] = {
   { 0, NULL, NULL }
 };
 
+static const GEnumValue preset_values_vvc[] = {
+  { PRESET_FASTER_VVC, "PRESET_FASTER_VVC", "faster" },
+  { PRESET_FAST_VVC, "PRESET_FAST_VVC", "fast" },
+  { PRESET_MEDIUM_VVC, "PRESET_MEDIUM_VVC", "medium" },
+  { PRESET_SLOW_VVC, "PRESET_SLOW_VVC", "slow" },
+  { PRESET_SLOWER_VVC, "PRESET_SLOWER_VVC", "slower" },
+  { 0, NULL, NULL }
+};
+
+
+
 #define DUMP_YUV_PLANES false  
 #define PROP_BITRATE_DEFAULT            (10 * 1000000)
 #define PROP_QP_DEFAULT                 32
@@ -89,7 +101,7 @@ static const GEnumValue preset_values[] = {
 #define ARG_RATE_CONTROL               2 //UVG_OBA 
 #define ARG_ADAPT_LOOP_FILTER          0 // OFF 
 #define ARG_SAMPLE_ADAPTATIVE_FILTER   3
-#define ARG_PRESET_DEFAULT  PRESET_MEDIUM
+#define ARG_PRESET_DEFAULT  1
 
 
 
@@ -102,11 +114,25 @@ GType gst_h266_enc_preset_get_type (void)
   static GType type = 0;
   
   if (G_UNLIKELY (type == 0)) {
-    type = g_enum_register_static ("GstH266EncPreset", preset_values);
+    if (strcmp(ENCODER_TYPE, "UVG_ENCODER") == 0) {
+      type = g_enum_register_static ("GstH266EncPreset", preset_values);
+    }
+    else if (strcmp(ENCODER_TYPE, "VVENC_ENCODER") == 0) {
+      type = g_enum_register_static ("GstH266EncPresetVVC", preset_values_vvc);
+    }
+    else {
+      fprintf(stderr," Unsupported encoder type %s \n", ENCODER_TYPE);
+      exit(1);
+    }
+
+   
   }
   
   return type;
 }
+
+
+
 
 
 static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src",
@@ -258,55 +284,73 @@ gst_h266enc_class_init (Gsth266encClass * klass)
           0, G_MAXINT, ARG_THREADS_DEFAULT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
   
-  g_object_class_install_property (gobject_class, PROP_ME,
-      g_param_spec_uint ("me", "ME",
-          "Integer motion estimation algorithm [hexbs]\n"
-    "                                   - 0 : hexbs: Hexagon Based Search\n"
-    "                                   - 1 : tz:    Test Zone Search\n"
-    "                                   - 2 : full:  Full Search\n"
-    "                                   - 3 : full8\n"
-    "                                   - 4 : full16\n"
-    "                                   - 5 : full32\n"
-    "                                   - 6 : full64\n"
-    "                                   - 7 : dia:   Diamond Search\n",
-          0, 7, ARG_IME_ALGORITHMS,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-    
-    
-  g_object_class_install_property (gobject_class, PROP_RATE_CONTROL,
-      g_param_spec_uint ("rc", "RC",
-          "Select used rc-algorithm [oba]\n"
-    "                                   - 0 : No rate control \n"
-    "                                   - 1 : lambda: rate control from: DOI: 10.1109/TIP.2014.2336550\n"
-    "                                   - 2 : oba:  DOI: 10.1109/TCSVT.2016.2589878\n",
-          0, 2, ARG_RATE_CONTROL,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+ 
+  if (strcmp(ENCODER_TYPE, "UVG_ENCODER") == 0)
+  {  
+      g_object_class_install_property (gobject_class, PROP_ME,
+          g_param_spec_uint ("me", "ME",
+              "Integer motion estimation algorithm [hexbs]\n"
+        "                                   - 0 : hexbs: Hexagon Based Search\n"
+        "                                   - 1 : tz:    Test Zone Search\n"
+        "                                   - 2 : full:  Full Search\n"
+        "                                   - 3 : full8\n"
+        "                                   - 4 : full16\n"
+        "                                   - 5 : full32\n"
+        "                                   - 6 : full64\n"
+        "                                   - 7 : dia:   Diamond Search\n",
+              0, 7, ARG_IME_ALGORITHMS,
+              G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+        
+        
+      g_object_class_install_property (gobject_class, PROP_RATE_CONTROL,
+          g_param_spec_uint ("rc", "RC",
+              "Select used rc-algorithm [oba]\n"
+        "                                   - 0 : No rate control \n"
+        "                                   - 1 : lambda: rate control from: DOI: 10.1109/TIP.2014.2336550\n"
+        "                                   - 2 : oba:  DOI: 10.1109/TCSVT.2016.2589878\n",
+              0, 2, ARG_RATE_CONTROL,
+              G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (gobject_class, PROP_ADAPT_LOOP_FILTER,
-      g_param_spec_uint ("alf", "ALF",
-          "Adaptive Loop Filter [off]\n"
-    "                                   - 0 : off ALF disabled \n"
-    "                                   - 1 : ALF enabled without cross component refinement\n"
-    "                                   - 2 : Full ALF\n",
-          0, 2, ARG_ADAPT_LOOP_FILTER,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+      g_object_class_install_property (gobject_class, PROP_ADAPT_LOOP_FILTER,
+          g_param_spec_uint ("alf", "ALF",
+              "Adaptive Loop Filter [off]\n"
+        "                                   - 0 : off ALF disabled \n"
+        "                                   - 1 : ALF enabled without cross component refinement\n"
+        "                                   - 2 : Full ALF\n",
+              0, 2, ARG_ADAPT_LOOP_FILTER,
+              G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (gobject_class, PROP_SAMPLE_ADAPTATIVE_FILTER,
-      g_param_spec_uint ("sao", "SAO",
-          "Sample Adaptive Offset [full]\n"
-    "                                   - 0 : off SAO disabled \n"
-    "                                   - 1 : Band offset only\n"
-    "                                   - 2 : Edge offset only\n"
-    "                                   - 3 : Full SAO\n",
-          0, 3, ARG_SAMPLE_ADAPTATIVE_FILTER,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+      g_object_class_install_property (gobject_class, PROP_SAMPLE_ADAPTATIVE_FILTER,
+          g_param_spec_uint ("sao", "SAO",
+              "Sample Adaptive Offset [full]\n"
+        "                                   - 0 : off SAO disabled \n"
+        "                                   - 1 : Band offset only\n"
+        "                                   - 2 : Edge offset only\n"
+        "                                   - 3 : Full SAO\n",
+              0, 3, ARG_SAMPLE_ADAPTATIVE_FILTER,
+              G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (gobject_class, PROP_PRESET,
+       g_object_class_install_property (gobject_class, PROP_PRESET,
+          g_param_spec_enum ("preset", "Preset",
+                            "Encoding preset (speed/quality tradeoff)",
+                            GST_TYPE_H266_ENC_PRESET,
+                            ARG_PRESET_DEFAULT,
+                            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+
+      
+  } else if (strcmp(ENCODER_TYPE, "VVENC_ENCODER") == 0)
+  {
+    g_object_class_install_property (gobject_class, PROP_PRESET_VVC,
       g_param_spec_enum ("preset", "Preset",
-                        "Encoding preset (speed/quality tradeoff)",
-                        GST_TYPE_H266_ENC_PRESET,
-                        ARG_PRESET_DEFAULT,
-                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+                              "Encoding preset (speed/quality tradeoff)",
+                              GST_TYPE_H266_ENC_PRESET,
+                              ARG_PRESET_DEFAULT,
+                              G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  }
+  else {
+     fprintf(stderr," No additionnal prop for this video codec \n");
+   }
         
   
 
@@ -348,6 +392,7 @@ gst_h266enc_init (Gsth266enc * encoder)
   encoder->alf = ARG_ADAPT_LOOP_FILTER;
   encoder->sao = ARG_SAMPLE_ADAPTATIVE_FILTER;
   encoder->preset = ARG_PRESET_DEFAULT;
+  encoder->preset_vvc = 2;
 
 }
 
@@ -387,6 +432,8 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
   h266Config.qp = encoder->qp;
 
   if( strcmp(ENCODER_TYPE, "VVENC_ENCODER") == 0) {
+        h266Config.preset_vvc = encoder->preset_vvc;
+
 
   }
   else if (strcmp(ENCODER_TYPE, "UVG_ENCODER") == 0) {
@@ -398,6 +445,7 @@ gst_h266_enc_init_encoder (Gsth266enc * encoder)
     h266Config.alf = encoder->alf;
     h266Config.sao = encoder->sao;
     h266Config.preset = encoder->preset;
+
   }
   else {
     GST_ERROR("Unsupported encoder type %s", ENCODER_TYPE);
@@ -764,6 +812,9 @@ gst_h266enc_set_property (GObject * object, guint prop_id,
     case PROP_PRESET:
       encoder->preset = g_value_get_enum(value);
       break;
+    case PROP_PRESET_VVC:
+      encoder->preset_vvc = g_value_get_enum (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -811,6 +862,9 @@ gst_h266enc_get_property (GObject * object, guint prop_id,
       break;
     case PROP_PRESET:
       g_value_set_enum(value, encoder->preset);
+      break;
+    case PROP_PRESET_VVC:
+      g_value_set_enum(value, encoder->preset_vvc);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);

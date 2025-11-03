@@ -80,7 +80,7 @@ VVENC_LIBRARY_API int vvenc_init(H266Config *config) {
     // Reset to default settings
     vvenc_init_default(&g_ctx.vvenccfg, config->width, 
                        config->height, config->framerate, 
-                       config->bitrate, config->qp, 0); // vvencPresetMode::VVENC_FASTER
+                       config->bitrate, config->qp, config->preset_vvc); // vvencPresetMode::VVENC_FASTER 0
 
     // Configure the format and bit depth
     if(config->format == H266_VIDEO_FORMAT_I420_10LE) {

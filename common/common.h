@@ -84,6 +84,7 @@ struct H266_CONFIG {
     int alf;
     int sao;
     int preset;
+    int preset_vvc;
 
     
 

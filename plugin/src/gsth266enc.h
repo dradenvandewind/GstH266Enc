@@ -30,6 +30,9 @@
 
 #ifndef __GST_H266ENC_H__
 #define __GST_H266ENC_H__
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
 
 #include <gst/gst.h>
 #include <stdbool.h>
@@ -68,6 +71,16 @@ typedef enum {
 } GstH266EncPreset;
 
 
+typedef enum {
+  PRESET_FASTER_VVC,
+  PRESET_FAST_VVC,
+  PRESET_MEDIUM_VVC,
+  PRESET_SLOW_VVC,
+  PRESET_SLOWER_VVC
+} GstH266EncPresetVVC;
+
+
+
 struct _Gsth266enc
 {
   GstVideoEncoder element;
@@ -87,6 +100,7 @@ struct _Gsth266enc
   gint alf;
   gint sao;
   GstH266EncPreset preset;
+  GstH266EncPresetVVC preset_vvc;
   
   gint logLevel;
   FILE *fp, *fp_Y, *fp_U, *fp_V;
@@ -106,9 +120,10 @@ struct _Gsth266encClass
 };
 
 GType gst_h266enc_get_type (void);
-
 #define GST_TYPE_H266_ENC_PRESET (gst_h266_enc_preset_get_type())
 
+
+// Forward declarations
 GType gst_h266_enc_preset_get_type (void);
 
 GST_ELEMENT_REGISTER_DECLARE (h266enc);
