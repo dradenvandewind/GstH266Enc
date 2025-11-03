@@ -21,9 +21,10 @@ Prerequisites for building the Gstreamer plugin on Linux are:
 - VVC encoder library 
 
 VVC encoder libraries currently supported by the plugin are:
-  - VVenC v1.4.0 - https://github.com/fraunhoferhhi/vvenc
-  - UVG266 v0.4.1 - https://github.com/ultravideo/uvg266
+  - VVenC v1.13.1 - https://github.com/fraunhoferhhi/vvenc
+  - UVG266 v0.8.1 - https://github.com/ultravideo/uvg266
 
+It may work on branch heads; it's for versioning.
 
 ## Installation
 
@@ -70,9 +71,9 @@ git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git && \
 - Follow the [build](https://github.com/fraunhoferhhi/vvenc/wiki/Build) process to generate the shared library (libvvenc.so)
 - install the libvvenc.so to the GStreamer install directory under `/usr/lib/x86_64-linux-gnu/`
  - build instruction:
-   git clone https://github.com/fraunhoferhhi/vvenc.git vvenc-1.4.0 && \
-	cd vvenc-1.4.0 && \
-	git checkout tags/v1.4.0 && \
+   git clone https://github.com/fraunhoferhhi/vvenc.git vvenc && \
+	cd vvenc && \
+	git checkout tags/v1.13.1 && \
 	mkdir build && \
 	cd build && \
 	cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON && \
@@ -88,7 +89,7 @@ git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git && \
 - build instruction :
 		git clone https://github.com/ultravideo/uvg266.git && \
 		cd uvg266 && \
-		git checkout tags/v0.4.1 && \
+		git checkout tags/v0.8.1 && \
 		cd build && \
 		cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON && \
 		make && \
@@ -164,26 +165,129 @@ Pad Templates:
 ```
 
 Following are the supported element properties:
+
 ```
-    Element Properties:
-        bitrate             : Bitrate in kbit/sec
-                                flags: readable, writable, changeable in NULL, READY, PAUSED or PLAYING state
-                                Unsigned Integer. Range: 1 - 102400000 Default: 10000000
-        min-force-key-unit-interval: Minimum interval between force-keyunit requests in nanoseconds
-                                flags: readable, writable
-                                Unsigned Integer64. Range: 0 - 18446744073709551615 Default: 0
-        name                : The name of the object
-                                flags: readable, writable, 0x2000
-                                String. Default: "h266enc0"
-        parent              : The parent of the object
-                                flags: readable, writable, 0x2000
-                                Object of type "GstObject"
-        qos                 : Handle Quality-of-Service events from downstream
-                                flags: readable, writable
-                                Boolean. Default: false
-        qp                  : QP for P slices in (implied) CQP mode (-1 = disabled)
-                                flags: readable, writable
-                                Integer. Range: -1 - 51 Default: 32
+    Element Properties for uvg:
+        
+  alf                 : Adaptive Loop Filter [off]
+                                   - 0 : off ALF disabled 
+                                   - 1 : ALF enabled without cross component refinement
+                                   - 2 : Full ALF
+
+                        flags: readable, writable
+                        Unsigned Integer. Range: 0 - 2 Default: 0 
+  
+  aud                 : Use AU (Access Unit) delimiter
+                        flags: readable, writable
+                        Boolean. Default: true
+  
+  bitrate             : Bitrate in kbit/sec
+                        flags: readable, writable, changeable in NULL, READY, PAUSED or PLAYING state
+                        Unsigned Integer. Range: 1 - 102400000 Default: 10000000 
+  
+  key-int-max         : Maximum interval between keyframes (0=only first, 1=all, N=every Nth)
+                        flags: readable, writable
+                        Unsigned Integer. Range: 0 - 2147483647 Default: 64 
+  
+  me                  : Integer motion estimation algorithm [hexbs]
+                                   - 0 : hexbs: Hexagon Based Search
+                                   - 1 : tz:    Test Zone Search
+                                   - 2 : full:  Full Search
+                                   - 3 : full8
+                                   - 4 : full16
+                                   - 5 : full32
+                                   - 6 : full64
+                                   - 7 : dia:   Diamond Search
+
+                        flags: readable, writable
+                        Unsigned Integer. Range: 0 - 7 Default: 0 
+  
+  min-force-key-unit-interval: Minimum interval between force-keyunit requests in nanoseconds
+                        flags: readable, writable
+                        Unsigned Integer64. Range: 0 - 18446744073709551615 Default: 0 
+  
+  name                : The name of the object
+                        flags: readable, writable
+                        String. Default: "h266enc0"
+  
+  parent              : The parent of the object
+                        flags: readable, writable
+                        Object of type "GstObject"
+  
+  preset              : Encoding preset (speed/quality tradeoff)
+                        flags: readable, writable
+                        Enum "GstH266EncPreset" Default: 1, "superfast"
+                           (0): ultrafast        - PRESET_ULTRAFAST
+                           (1): superfast        - PRESET_SUPERFAST
+                           (2): veryfast         - PRESET_VERYFAST
+                           (3): faster           - PRESET_FASTER
+                           (4): fast             - PRESET_FAST
+                           (5): medium           - PRESET_MEDIUM
+                           (6): slow             - PRESET_SLOW
+                           (7): slower           - PRESET_SLOWER
+                           (8): veryslow         - PRESET_VERYSLOW
+                           (9): placebo          - PRESET_PLACEBO
+  
+  qos                 : Handle Quality-of-Service events from downstream
+                        flags: readable, writable
+                        Boolean. Default: false
+  
+  qp                  : QP for P slices in (implied) CQP mode (-1 = disabled)
+                        flags: readable, writable
+                        Integer. Range: -1 - 51 Default: 32 
+  
+  rc                  : Select used rc-algorithm [oba]
+                                   - 0 : No rate control 
+                                   - 1 : lambda: rate control from: DOI: 10.1109/TIP.2014.2336550
+                                   - 2 : oba:  DOI: 10.1109/TCSVT.2016.2589878
+
+                        flags: readable, writable
+                        Unsigned Integer. Range: 0 - 2 Default: 2 
+  
+  sao                 : Sample Adaptive Offset [full]
+                                   - 0 : off SAO disabled 
+                                   - 1 : Band offset only
+                                   - 2 : Edge offset only
+                                   - 3 : Full SAO
+
+                        flags: readable, writable
+                        Unsigned Integer. Range: 0 - 3 Default: 3 
+  
+  threads             : Number of threads used by the codec (0 for automatic)
+                        flags: readable, writable
+                        Unsigned Integer. Range: 0 - 2147483647 Default: 0 
+
+
+```
+
+```
+    Element Properties for vvc:
+
+  bitrate             : Bitrate in kbit/sec
+                        flags: readable, writable, changeable in NULL, READY, PAUSED or PLAYING state
+                        Unsigned Integer. Range: 1 - 102400000 Default: 10000000 
+  
+  name                : The name of the object
+                        flags: readable, writable
+                        String. Default: "h266enc0"
+  
+  parent              : The parent of the object
+                        flags: readable, writable
+                        Object of type "GstObject"
+  
+  preset              : Encoding preset (speed/quality tradeoff)
+                        flags: readable, writable
+                        Enum "GstH266EncPresetVVC" Default: 2, "medium"
+                           (0): faster           - PRESET_FASTER_VVC
+                           (1): fast             - PRESET_FAST_VVC
+                           (2): medium           - PRESET_MEDIUM_VVC
+                           (3): slow             - PRESET_SLOW_VVC
+                           (4): slower           - PRESET_SLOWER_VVC
+  
+  qos                 : Handle Quality-of-Service events from downstream
+                        flags: readable, writable
+                        Boolean. Default: false
+  
 
 ```
 

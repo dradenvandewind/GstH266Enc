@@ -67,6 +67,7 @@ static H266EncoderType encoderType;
 static EncoderUtil encoderUtil;
 static void* hLibrary = NULL;
 
+
 H266Status initEncoder(H266EncoderType type, H266Config* vvencConfig);
 H266Status encodeFrame(H266Frame *frame);
 H266Status closeEncoder();

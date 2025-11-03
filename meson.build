@@ -53,7 +53,7 @@ system_deps = [
 
 # Include directories
 vvenc_inc = include_directories('/usr/include/vvenc',
-  '/root/workingsrc/vvenc-1.4.0/include')
+  '../vvenc/include')
 
 plugin_c_args = [
   '-DHAVE_CONFIG_H',

@@ -107,7 +107,7 @@ static const GEnumValue preset_values_vvc[] = {
 
 static int video_width = 0;
 static int video_height = 0;
-static int video_frame_rate = 0;
+
 
 GType gst_h266_enc_preset_get_type (void)
 {
@@ -583,6 +583,11 @@ gst_h266_enc_finish (GstVideoEncoder * encoder)
   GST_INFO("gst_h266_enc_finish called");
     //flush the encoder here
   Gsth266enc *enc = GST_H266ENC(encoder);
+  if(!enc) {
+    GST_ERROR("Encoder is NULL in finish");
+    return GST_FLOW_ERROR;  
+  }
+
   H266Frame h266_frame;
 
   h266_frame.silence = true;

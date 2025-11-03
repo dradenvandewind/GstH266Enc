@@ -115,9 +115,9 @@ RUN git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git && \
   ldconfig
 
 
-RUN git clone https://github.com/fraunhoferhhi/vvenc.git vvenc-1.4.0 && \
-cd vvenc-1.4.0 && \
-git checkout tags/v1.4.0 && \
+RUN git clone https://github.com/fraunhoferhhi/vvenc.git vvenc && \
+cd vvenc && \
+git checkout tags/v1.13.1 && \
 mkdir build && \
 cd build && \
 cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON && \
@@ -128,7 +128,7 @@ ldconfig && cd ../..
 
 RUN git clone https://github.com/ultravideo/uvg266.git && \
 cd uvg266 && \
-git checkout tags/v0.4.1 && \
+git checkout tags/v0.8.1 && \
 cd build && \
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON && \
 make && \
@@ -139,6 +139,8 @@ RUN git clone https://github.com/dradenvandewind/GstH266Enc.git && \
 cd GstH266Enc && \
 ./build_vvc.sh && \
 cd ..
+# for uvg
+# ./build_uvg.sh
 
 RUN export GST_DEBUG_DUMP_DOT_DIR=/tmp/
 

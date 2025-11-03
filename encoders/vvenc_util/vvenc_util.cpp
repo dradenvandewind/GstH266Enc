@@ -35,7 +35,7 @@
 #include "vvenc/vvenc.h"
 #include "vvenc/vvencCfg.h"
 //#include <vvenc/apputils/VVEncAppCfg.h> 
-#include "../../../vvenc-1.4.0/include/apputils/VVEncAppCfg.h"
+#include "../../../vvenc/include/apputils/VVEncAppCfg.h"
 
 #ifdef _WIN32
 #include <windows.h>
