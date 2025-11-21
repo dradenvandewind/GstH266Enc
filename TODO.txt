@@ -1,0 +1,5 @@
+ for ott integration  i need to :
+ add properties to disable or enable open_gop
+ add gop_size properties  for to set gop size to 2* framerate
+ add additionnal rate control properties etc
+  ?? 
